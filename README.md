@@ -1,6 +1,7 @@
 # Crypto Trade System
 
 Crypto Trade System是一个 AI 驱动的加密货币自动交易系统，将大语言模型智能与量化交易实践深度融合，通过赋予 AI 完全的市场分析和交易决策自主权，实现智能化交易。
+![ai trading](./docs/pics/mainscreen-ai%20trading.png)
 
 ## ⚠️ 风险警示
 
@@ -158,6 +159,8 @@ CRYPTO_TRADE_USERNAME={your database username}
 LOG_PATH={log path}
 # AI Trading Risk Control Mode
 AI_TRADING_RISK_MODE=AUTO
+# 是否开启AI自动交易 true/false
+AI_TRADING_AUTOMATIC_TRADE_ENABLED=true
 ```
 
 ### 3. 编译
@@ -172,5 +175,8 @@ sh start.sh
 访问 `http://localhost:8080` 进入系统。
 
 ## ⚠️ 注意事项
-*   **API Key 安全**: 请确保 CEX API Key 权限最小化（仅交易和读取，**不要开启提现权限**）。
-*   **风险提示**: 加密货币交易风险极高，自动交易系统可能因市场波动、网络延迟或代码缺陷导致资金损失。请在实盘前充分测试。
+> *   **API Key 安全**: 请确保 CEX API Key 权限最小化（仅交易和读取，**不要开启提现权限**）。
+> *   **风险提示**: 加密货币交易风险极高，自动交易系统可能因市场波动、网络延迟或代码缺陷导致资金损失。请在实盘前充分测试。
+
+## 用户指引
+参考[《用户指南》](./docs/guides/user-guide.md)
