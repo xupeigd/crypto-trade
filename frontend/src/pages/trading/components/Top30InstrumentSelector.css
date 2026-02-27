@@ -1,0 +1,596 @@
+.top30-instrument-selector {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 价格注入器样式 */
+.price-injector {
+    display: none;
+}
+
+/* 选择器内部价格信息样式 */
+.instrument-select .ant-select-selector {
+    position: relative;
+}
+
+.instrument-select .ant-select-selection-item {
+    display: block;
+    width: 100%;
+    padding-right: 30px; /* 为箭头留出空间 */
+    overflow: hidden;
+    color: transparent !important; /* 隐藏原有文本 */
+    text-indent: -9999px; /* 将文本移出可视区域 */
+    font-size: 0; /* 隐藏文本大小 */
+}
+
+/* 彻底隐藏选择器的文本内容 */
+.instrument-select .ant-select-selection-item::before {
+    display: none !important;
+}
+
+.instrument-select .ant-select-selection-item::after {
+    display: none !important;
+}
+
+
+/* 使用JavaScript注入的4部分布局样式 */
+.instrument-selector-4parts {
+    display: grid;
+    /* 调整为5列布局：合约名称、价格、1H涨跌幅、4H涨跌幅、24H涨跌幅，等分宽度 */
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 30px 0 12px; /* 左右内边距，与选择器对齐 */
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    z-index: 10;
+    background: inherit;
+}
+
+.part-instrument {
+    font-weight: 600;
+    font-size: 14px;
+    color: #ffffff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-right: 1px solid rgba(255, 255, 255, 0); /* 完全透明的分割线 */
+    padding-right: 8px;
+    padding-left: 2px; /* 防止与左边框太近 */
+}
+
+.part-price {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1890ff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    border-right: 1px solid rgba(255, 255, 255, 0); /* 完全透明的分割线 */
+    padding-right: 8px;
+    animation: price-breathing 2s infinite ease-in-out;
+}
+
+@keyframes price-breathing {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.part-change {
+    font-weight: 600;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    border-right: 1px solid rgba(255, 255, 255, 0); /* 完全透明的分割线 */
+    padding-right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 3px; /* 调整标识与数值之间的距离为3px，更紧凑 */
+}
+
+/* 24H标签样式 - 红涨绿跌 */
+.part-change .time-label {
+    font-size: 10px; /* 减小字体大小 */
+    color: #ffffff;
+    font-weight: 700;
+    opacity: 0.8; /* 降低不透明度 */
+    padding: 1px 4px; /* 减小内边距 */
+    border-radius: 2px; /* 减小圆角 */
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    white-space: nowrap;
+    transform: scale(0.9); /* 进一步缩小视觉尺寸 */
+    display: inline-block;
+}
+
+/* 上涨时24H标签样式 - 绿色 */
+.part-change.positive .time-label {
+    background-color: rgba(82, 196, 26, 0.2);
+    border-color: rgba(82, 196, 26, 0.4);
+}
+
+/* 下跌时24H标签样式 - 红色 */
+.part-change.negative .time-label {
+    background-color: rgba(255, 77, 79, 0.2);
+    border-color: rgba(255, 77, 79, 0.4);
+}
+
+/* 无数据时24H标签样式 - 灰色 */
+.part-change.no-data .time-label {
+    background-color: rgba(140, 140, 140, 0.2);
+    border-color: rgba(140, 140, 140, 0.4);
+}
+
+.part-change .change-value {
+    flex: none; /* 改为不占用剩余空间 */
+    text-align: left; /* 改为左对齐，与24H标识紧贴 */
+    animation: price-breathing 2s infinite ease-in-out;
+}
+
+.part-change.positive .change-value {
+    color: #52c41a; /* 绿色表示上涨 */
+}
+
+.part-change.negative .change-value {
+    color: #ff4d4f; /* 红色表示下跌 */
+}
+
+.part-change.no-data .change-value {
+    color: #8c8c8c; /* 灰色表示无数据 */
+}
+
+.part-realtime {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1890ff;
+    text-align: center;
+    animation: pulse 2s infinite;
+    white-space: nowrap;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: rgba(24, 144, 255, 0.1);
+    border: 1px solid rgba(24, 144, 255, 0.2);
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+    .part-instrument {
+        color: #ffffff;
+    }
+
+    .part-price {
+        color: #4096ff;
+    }
+
+    .part-realtime {
+        color: #4096ff;
+    }
+}
+
+.instrument-select {
+    width: 100%;
+}
+
+/* 下拉框容器样式 */
+.instrument-dropdown {
+    width: 100%;
+    max-height: 320px;
+    overflow-y: auto;
+    background: #1f1f1f;
+    border: 1px solid #434343;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+}
+
+/* 搜索框容器 */
+.instrument-search {
+    padding: 12px;
+    border-bottom: 1px solid #434343;
+    background: #262626;
+    border-radius: 8px 8px 0 0;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #434343;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+    background: #1f1f1f;
+    color: #ffffff;
+    pointer-events: auto;
+}
+
+.search-input:focus {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 搜索输入框占位符样式 */
+.search-input::placeholder {
+    color: #a6a6a6;
+}
+
+/* 合约列表容器 */
+.instrument-list {
+    padding: 8px 0;
+}
+
+/* 合约选项项 */
+.instrument-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #434343;
+    background-color: #1f1f1f;
+}
+
+.instrument-item:last-child {
+    border-bottom: none;
+}
+
+.instrument-item:hover {
+    background-color: #262626;
+}
+
+.instrument-item:active {
+    background-color: #1890ff;
+}
+
+/* 合约名称和ID样式 */
+.instrument-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+
+.instrument-id {
+    font-size: 12px;
+    color: #a6a6a6;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* 加载和无结果状态 */
+.loading-text,
+.no-results {
+    padding: 24px 16px;
+    text-align: center;
+    color: #a6a6a6;
+    font-size: 14px;
+    background-color: #1f1f1f;
+}
+
+/* 确保点击事件正确传播 */
+.instrument-dropdown * {
+    box-sizing: border-box;
+}
+
+/* 防止事件冒泡的关键样式 */
+.instrument-dropdown .search-input {
+    z-index: 1;
+    position: relative;
+}
+
+/* 选择器选项内容样式 */
+.instrument-option-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.instrument-select .ant-select-selector {
+    border-radius: 8px !important;
+    border: 2px solid #d9d9d9 !important;
+    transition: border-color 0.3s ease;
+}
+
+.instrument-select:hover .ant-select-selector,
+.instrument-select.ant-select-focused .ant-select-selector {
+    border-color: #1890ff !important;
+}
+
+.selected-instrument {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+}
+
+.instrument-name {
+    font-weight: 600;
+    color: #262626;
+    flex-shrink: 0;
+}
+
+.instrument-price {
+    color: #1890ff;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+
+/* 涨跌幅百分比颜色样式 */
+.change-percent {
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.change-percent.positive {
+    color: #52c41a; /* 绿色表示正涨跌幅（上涨） */
+}
+
+.change-percent.negative {
+    color: #ff4d4f; /* 红色表示负涨跌幅（下跌） */
+}
+
+.change-percent.no-data {
+    color: #8c8c8c; /* 灰色表示数据不足 */
+}
+
+.refresh-indicator {
+    font-size: 11px;
+    padding: 2px 4px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 响应式设计 - 适配选择器内部价格显示 */
+@media (max-width: 1200px) {
+    .instrument-select .ant-select-selection-item {
+        font-size: 13px;
+    }
+
+    .instrument-select .ant-select-selection-item::after {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    .instrument-select .ant-select-selection-item {
+        font-size: 12px;
+    }
+
+    .instrument-select .ant-select-selection-item::after {
+        font-size: 10px;
+        margin-left: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .instrument-select .ant-select-selection-item::after {
+        font-size: 9px;
+        margin-left: 4px;
+    }
+}
+
+/* 涨跌幅变化时的颜色过渡动画 */
+@keyframes colorChange {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    50% {
+        transform: scale(1.05);
+        filter: brightness(1.2);
+    }
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+.change-percent.value-changed {
+    animation: colorChange 0.6s ease-in-out;
+}
+
+/* 价格变化动画 */
+.instrument-price.price-changed {
+    animation: colorChange 0.4s ease-in-out;
+}
+
+/* 下拉框样式 */
+.instrument-dropdown {
+    padding: 0;
+    max-height: 320px;
+    overflow: hidden;
+}
+
+.instrument-search {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    background-color: #fafafa;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: #1890ff;
+}
+
+.instrument-list {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.instrument-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.instrument-item:hover {
+    background-color: #f5f5f5;
+}
+
+.instrument-item:last-child {
+    border-bottom: none;
+}
+
+.instrument-name {
+    font-weight: 600;
+    color: #262626;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.instrument-id {
+    font-size: 12px;
+    color: #8c8c8c;
+    font-family: 'Courier New', monospace;
+}
+
+.loading-text {
+    padding: 20px;
+    text-align: center;
+    color: #8c8c8c;
+    font-size: 14px;
+}
+
+.no-results {
+    padding: 20px;
+    text-align: center;
+    color: #8c8c8c;
+    font-size: 14px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .top30-instrument-selector {
+        gap: 6px;
+    }
+
+    .price-display-container {
+        padding: 6px 8px;
+        min-height: 36px;
+        gap: 6px;
+    }
+
+    .selected-instrument-price-info {
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .instrument-price {
+        font-size: 12px;
+    }
+
+    .instrument-change-container {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 1px 4px;
+    }
+
+    .instrument-name {
+        font-size: 13px;
+    }
+
+    .instrument-id {
+        font-size: 11px;
+    }
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+    .instrument-select .ant-select-selector {
+        border-color: #434343 !important;
+        background-color: #1f1f1f;
+    }
+
+    .instrument-name {
+        color: #ffffff;
+    }
+
+    .instrument-search {
+        background-color: #262626;
+        border-bottom-color: #434343;
+    }
+
+    .search-input {
+        background-color: #1f1f1f;
+        border-color: #434343;
+        color: #ffffff;
+    }
+
+    .instrument-item:hover {
+        background-color: #262626;
+    }
+
+    .instrument-id {
+        color: #bfbfbf;
+    }
+
+    .loading-text,
+    .no-results {
+        color: #bfbfbf;
+    }
+
+    /* 深色模式下的涨跌幅百分比颜色优化 */
+    .change-percent.positive {
+        color: #73d13d; /* 深色模式下使用更亮的绿色 */
+    }
+
+    .change-percent.negative {
+        color: #ff7875; /* 深色模式下使用更亮的红色 */
+    }
+
+    .change-percent.no-data {
+        color: #a0a0a0; /* 深色模式下使用更亮的灰色 */
+    }
+
+    /* 深色模式下24H标签保持白色 */
+    .instrument-change-container .time-label {
+        color: #ffffff !important; /* 深色模式下24H也保持白色 */
+        opacity: 0.95;
+    }
+
+    /* 深色主题下的价格显示容器 */
+    .price-display-container {
+        background-color: #262626;
+        border-color: #434343;
+    }
+
+    .selected-instrument-price-info {
+        /* 继承深色主题设置 */
+    }
+}

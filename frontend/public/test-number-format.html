@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>数值截断功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .expected {
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+<h1>数值截断功能测试</h1>
+<div id="results"></div>
+
+<script>
+    // 截断函数
+    function truncateToDecimalPlaces(value, decimalPlaces) {
+        const factor = Math.pow(10, decimalPlaces);
+        return Math.floor(value * factor) / factor;
+    }
+
+    // 格式化函数
+    function formatEffectiveDecimal(value, defaultPrecision = 2, minDecimalPlaces = 0, maxDecimalPlaces = 4) {
+        const num = typeof value === 'string' ? parseFloat(value) : value;
+
+        if (isNaN(num) || !isFinite(num)) {
+            return '0';
+        }
+
+        if (num === 0) {
+            return `0.${'0'.repeat(Math.min(defaultPrecision, maxDecimalPlaces))}`;
+        }
+
+        const truncatedNum = truncateToDecimalPlaces(num, maxDecimalPlaces);
+        const str = truncatedNum.toFixed(maxDecimalPlaces);
+
+        let formatted = str.replace(/\.?0+$/, '');
+
+        if (!formatted.includes('.')) {
+            if (minDecimalPlaces > 0) {
+                formatted += '.' + '0'.repeat(Math.min(minDecimalPlaces, maxDecimalPlaces));
+            }
+        } else {
+            const decimalPart = formatted.split('.')[1];
+            if (decimalPart.length < minDecimalPlaces) {
+                formatted = formatted.padEnd(formatted.length + (minDecimalPlaces - decimalPart.length), '0');
+            }
+        }
+
+        return formatted;
+    }
+
+    // 测试用例
+    const testCases = [
+        {label: '圆周率截断', value: 3.1415926, expected: '3.1415'},
+        {label: '长小数截断', value: 1.23456789, expected: '1.2345'},
+        {label: '接近1截断', value: 0.999999, expected: '0.9999'},
+        {label: '正常2位小数', value: 1.23, expected: '1.23'},
+        {label: '1位小数', value: 1.2, expected: '1.2'},
+        {label: '整数', value: 1, expected: '1'},
+        {label: '零值', value: 0, expected: '0.00'},
+        {label: '很小的数', value: 0.0001, expected: '0.0001'},
+        {label: '需要截断的数', value: 1.999999, expected: '1.9999'},
+    ];
+
+    // 执行测试
+    const resultsDiv = document.getElementById('results');
+    let allPassed = true;
+
+    testCases.forEach(test => {
+        const result = formatEffectiveDecimal(test.value, 2);
+        const passed = result === test.expected;
+
+        const testCaseDiv = document.createElement('div');
+        testCaseDiv.className = 'test-case';
+        testCaseDiv.style.borderColor = passed ? '#52c41a' : '#ff4d4f';
+
+        testCaseDiv.innerHTML = `
+                <strong>${test.label}:</strong>
+                输入: ${test.value} → 输出: <strong>${result}</strong>
+                <div class="expected">期望: ${test.expected} ${passed ? '✅' : '❌'}</div>
+            `;
+
+        resultsDiv.appendChild(testCaseDiv);
+
+        if (!passed) {
+            allPassed = false;
+            console.error(`测试失败: ${test.label}, 期望 ${test.expected}, 得到 ${result}`);
+        }
+    });
+
+    // 总结
+    const summaryDiv = document.createElement('div');
+    summaryDiv.innerHTML = `<h2>测试结果: ${allPassed ? '全部通过 ✅' : '有测试失败 ❌'}</h2>`;
+    summaryDiv.style.color = allPassed ? '#52c41a' : '#ff4d4f';
+    summaryDiv.style.fontSize = '18px';
+    summaryDiv.style.marginTop = '20px';
+    resultsDiv.appendChild(summaryDiv);
+
+    console.log('=== 数值截断功能测试完成 ===');
+    console.log(`测试结果: ${allPassed ? '全部通过' : '有测试失败'}`);
+</script>
+</body>
+</html>

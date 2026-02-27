@@ -1,0 +1,340 @@
+/* 主弹窗样式 */
+.order-approval-modal .ant-modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 24px;
+}
+
+/* 修复Descriptions布局 - 确保每行表格占满宽度 */
+.single-column-descriptions {
+    width: 100% !important;
+}
+
+.single-column-descriptions table {
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+
+.single-column-descriptions tr {
+    width: 100% !important;
+    display: table-row !important;
+}
+
+.single-column-descriptions th,
+.single-column-descriptions td {
+    width: auto !important;
+    display: table-cell !important;
+}
+
+.order-approval-modal .ant-modal-title {
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
+}
+
+.order-approval-modal .ant-modal-body {
+    padding: 24px;
+    background-color: #141414;
+}
+
+.order-approval-modal .ant-modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 24px;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-title span {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* 订单详情样式 */
+.order-details {
+    margin-bottom: 16px;
+}
+
+.order-details .ant-descriptions-item-label {
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 500;
+    width: 100px;
+}
+
+.order-details .ant-descriptions-item-content {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.order-id {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.symbol {
+    font-weight: 600;
+    color: #1890ff;
+}
+
+.quantity {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 500;
+}
+
+.price {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-weight: 500;
+    color: #52c41a;
+}
+
+.create-time,
+.audit-time {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 13px;
+}
+
+.auditor,
+.order-source {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.rejection-reason {
+    color: #ff4d4f;
+    background-color: rgba(255, 77, 79, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* 审核操作提示 */
+.approval-actions {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: rgba(250, 173, 20, 0.1);
+    border: 1px solid rgba(250, 173, 20, 0.3);
+    border-radius: 6px;
+}
+
+.action-tips {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 14px;
+}
+
+/* 驳回弹窗样式 */
+.reject-modal .ant-modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reject-modal .ant-modal-title {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.reject-modal .ant-modal-body {
+    padding: 20px 24px;
+    background-color: #141414;
+}
+
+.reject-modal .ant-modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reject-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.reject-tip {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 14px;
+    padding: 8px 0;
+}
+
+.reject-textarea {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.85);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.reject-textarea:focus {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.reject-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.reject-textarea .ant-input-count {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+/* 按钮样式 */
+.order-approval-modal .ant-btn {
+    border-radius: 6px;
+    height: 36px;
+    font-weight: 500;
+}
+
+.order-approval-modal .ant-btn-primary {
+    background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+    border: none;
+}
+
+.order-approval-modal .ant-btn-primary:hover {
+    background: linear-gradient(135deg, #40a9ff 0%, #1890ff 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.4);
+}
+
+.order-approval-modal .ant-btn-danger {
+    background: linear-gradient(135deg, #ff4d4f 0%, #d9363e 100%);
+    border: none;
+}
+
+.order-approval-modal .ant-btn-danger:hover {
+    background: linear-gradient(135deg, #ff7875 0%, #ff4d4f 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.4);
+}
+
+.order-approval-modal .ant-btn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.25);
+    transform: none;
+    box-shadow: none;
+}
+
+/* 标签样式 */
+.order-approval-modal .ant-tag {
+    margin: 0;
+    padding: 2px 8px;
+    font-size: 12px;
+    border: none;
+    font-weight: 500;
+}
+
+/* 描述列表样式 */
+.order-details .ant-descriptions-bordered .ant-descriptions-item-label {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.order-details .ant-descriptions-bordered .ant-descriptions-item-content {
+    background-color: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .order-approval-modal {
+        margin: 0;
+        max-width: 100vw;
+        top: 0;
+    }
+
+    .order-approval-modal .ant-modal-content {
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .reject-modal {
+        margin: 0;
+        max-width: 100vw;
+    }
+
+    .reject-modal .ant-modal-content {
+        margin: 0;
+        border-radius: 0;
+    }
+}
+
+/* 暗色主题适配 */
+.order-approval-modal .ant-modal-content {
+    background-color: #1f1f1f;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.order-approval-modal .ant-modal-close {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.order-approval-modal .ant-modal-close:hover {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* 动画效果 */
+.order-approval-modal .ant-modal-mask {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.order-approval-modal .ant-modal-wrap {
+    overflow: auto;
+}
+
+/* 实时价格动画效果 */
+.realtime-price-updating {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 百分比颜色 */
+.percentage-positive {
+    color: #52c41a !important;
+}
+
+.percentage-negative {
+    color: #ff4d4f !important;
+}
+
+/* 调整行间距 */
+.order-detail-row {
+    margin-bottom: 6px;
+}
+
+.order-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 实时价格特殊样式 */
+.realtime-price {
+    font-weight: 600;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    transition: color 0.3s ease;
+}
+
+/* 止盈止损详情样式 */
+.stop-loss-detail {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.percentage-value {
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.expected-value {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+}

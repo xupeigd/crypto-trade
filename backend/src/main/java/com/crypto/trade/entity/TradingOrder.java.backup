@@ -1,0 +1,154 @@
+package com.crypto.trade.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+
+/**
+ * 交易订单实体类
+ * 记录OKX合约交易订单信息
+ */
+@Entity
+@Table(name = "t_trading_orders")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class TradingOrder {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
+    @Column(name = "order_id", nullable = false, length = 50, unique = true)
+    private String orderId;
+
+    @Column(name = "api_key_id")
+    private Long apiKeyId;
+
+    @Column(name = "vendor", nullable = false, length = 10)
+    private String vendor;
+
+    @Column(name = "inst_id", nullable = false, length = 50)
+    private String instId;
+
+    @Column(name = "side", nullable = false, length = 20)
+    private String side;
+
+    @Column(name = "order_type", nullable = false, length = 20)
+    private String orderType;
+
+    @Column(name = "td_mode", nullable = false, length = 20)
+    private String tdMode;
+
+    @Column(name = "ccy", nullable = false, length = 10)
+    private String ccy;
+
+    @Column(name = "lever", nullable = false, precision = 8, scale = 2)
+    private BigDecimal lever;
+
+    @Column(name = "pos_side", length = 20)
+    private String posSide;
+
+    @Column(name = "sz", nullable = false, precision = 38, scale = 8)
+    private BigDecimal sz;
+
+    @Column(name = "px", precision = 38, scale = 8)
+    private BigDecimal px;
+
+    @Column(name = "amt", nullable = false, precision = 38, scale = 8)
+    private BigDecimal amt;
+
+    @Column(name = "order_state", nullable = false, length = 20)
+    private String orderState;
+
+    @Column(name = "avg_px", precision = 38, scale = 8)
+    private BigDecimal avgPx;
+
+    @Column(name = "filled_sz", precision = 38, scale = 8)
+    private BigDecimal filledSz = BigDecimal.ZERO;
+
+    @Column(name = "filled_amt", precision = 38, scale = 8)
+    private BigDecimal filledAmt = BigDecimal.ZERO;
+
+    @Column(name = "fee", precision = 38, scale = 8)
+    private BigDecimal fee = BigDecimal.ZERO;
+
+    @Column(name = "fee_ccy", length = 10)
+    private String feeCcy;
+
+    @Column(name = "source", length = 20)
+    private String source = "web";
+
+    @Column(name = "created_time")
+    private LocalDateTime createdTime = LocalDateTime.now();
+
+    @Column(name = "updated_time")
+    private LocalDateTime updatedTime = LocalDateTime.now();
+
+    @Column(name = "exec_time")
+    private LocalDateTime execTime;
+
+    @Column(name = "order_result", length = 50)
+    private String orderResult;
+
+    @Column(name = "error_msg", columnDefinition = "TEXT")
+    private String errorMsg;
+
+    @Column(name = "take_profit_price", precision = 38, scale = 8)
+    private BigDecimal takeProfitPrice;
+
+    @Column(name = "stop_loss_price", precision = 38, scale = 8)
+    private BigDecimal stopLossPrice;
+
+    @Column(name = "take_profit_pct", precision = 8, scale = 4)
+    private BigDecimal takeProfitPct;
+
+    @Column(name = "stop_loss_pct", precision = 8, scale = 4)
+    private BigDecimal stopLossPct;
+
+    // 关联API Key实体
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "api_key_id", insertable = false, updatable = false)
+    private ApiKey apiKey;
+
+    @PrePersist
+    protected void onCreate() {
+        createdTime = LocalDateTime.now();
+        updatedTime = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedTime = LocalDateTime.now();
+    }
+
+    /**
+     * 判断订单是否已完成
+     */
+    public boolean isCompleted() {
+        return "filled".equals(orderState) || "partially_filled".equals(orderState);
+    }
+
+    /**
+     * 判断订单是否活跃
+     */
+    public boolean isActive() {
+        return "live".equals(orderState) || "partially_filled".equals(orderState);
+    }
+
+    /**
+     * 计算成交比例
+     */
+    public BigDecimal getFillRatio() {
+        if (sz.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return filledSz.divide(sz, 8, RoundingMode.HALF_UP);
+    }
+}

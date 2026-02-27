@@ -1,0 +1,699 @@
+/* InstrumentDetailPanel 组件样式 */
+.instrument-detail-panel {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    margin-top: 20px; /* 增加与上方组件的间距 */
+    margin-bottom: 16px; /* 增加与下方组件的间距 */
+}
+
+.instrument-detail-panel .ant-card-head {
+    background: #1f1f1f;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 16px 20px; /* 增加头部内边距 */
+}
+
+.instrument-detail-panel .ant-card-head-title {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.instrument-detail-panel .ant-card-body {
+    background: #1a1a1a;
+    padding: 20px; /* 增加内容区域内边距 */
+}
+
+/* 统计项样式 */
+.instrument-detail-panel .ant-statistic {
+    text-align: center;
+}
+
+.instrument-detail-panel .ant-statistic-title {
+    color: #8c8c8c;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.instrument-detail-panel .ant-statistic-content {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.instrument-detail-panel .ant-statistic-content-value {
+    color: #ffffff;
+}
+
+/* 资金费率标签样式 - 移除背景色，红正绿负 */
+.instrument-detail-panel .funding-rate-positive {
+    background: transparent;
+    color: #52c41a; /* 绿色表示负资金费率 */
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.instrument-detail-panel .funding-rate-negative {
+    background: transparent;
+    color: #ff4d4f; /* 红色表示正资金费率 */
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.instrument-detail-panel .funding-rate-neutral {
+    background: transparent;
+    color: #8c8c8c;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+/* 时间显示样式 */
+.instrument-detail-panel .time-display {
+    color: #bfbfbf;
+    font-size: 13px;
+}
+
+.instrument-detail-panel .countdown-display {
+    color: #faad14;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .instrument-detail-panel .ant-card-body {
+        padding: 12px;
+    }
+
+    .instrument-detail-panel .compact-item {
+        min-width: 80px;
+        gap: 3px;
+    }
+
+    .instrument-detail-panel .compact-label {
+        font-size: 9px;
+    }
+
+
+    .instrument-detail-panel .compact-change {
+        font-size: 11px;
+    }
+
+    .instrument-detail-panel .compact-countdown {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 576px) {
+    .instrument-detail-panel .ant-card-head {
+        padding: 10px 12px;
+    }
+
+    .instrument-detail-panel .ant-card-head-title {
+        font-size: 13px;
+    }
+
+    .instrument-detail-panel .ant-card-body {
+        padding: 8px 12px;
+    }
+
+    .instrument-detail-panel .compact-item {
+        min-width: 70px;
+        gap: 2px;
+    }
+
+    .instrument-detail-panel .compact-label {
+        font-size: 8px;
+    }
+
+
+    .instrument-detail-panel .compact-change {
+        font-size: 10px;
+    }
+
+    .instrument-detail-panel .compact-countdown {
+        font-size: 10px;
+    }
+}
+
+/* 标签样式优化 */
+.instrument-detail-panel .ant-tag {
+    margin: 0;
+    padding: 2px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* 说明信息样式 */
+.instrument-detail-panel .info-section {
+    border-top: 1px solid #2a2a2a;
+    margin-top: 12px;
+    padding-top: 12px;
+}
+
+.instrument-detail-panel .info-text {
+    color: #8c8c8c;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* 加载状态样式 */
+.instrument-detail-panel .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #8c8c8c;
+}
+
+.instrument-detail-panel .loading-text {
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+/* 错误状态样式 */
+.instrument-detail-panel .error-container {
+    text-align: center;
+    padding: 40px 20px;
+    color: #ff4d4f;
+}
+
+.instrument-detail-panel .error-text {
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+/* 空状态样式 */
+.instrument-detail-panel .empty-container {
+    text-align: center;
+    padding: 40px 20px;
+    color: #8c8c8c;
+}
+
+.instrument-detail-panel .empty-text {
+    font-size: 13px;
+}
+
+/* 深色主题下的 Alert 组件样式 */
+.instrument-detail-panel .ant-alert {
+    background: rgba(255, 77, 79, 0.1);
+    border: 1px solid rgba(255, 77, 79, 0.2);
+}
+
+.instrument-detail-panel .ant-alert-error {
+    background: rgba(255, 77, 79, 0.1);
+    border-color: rgba(255, 77, 79, 0.2);
+}
+
+.instrument-detail-panel .ant-alert-message {
+    color: #ff4d4f;
+}
+
+.instrument-detail-panel .ant-alert-description {
+    color: #ffccc7;
+}
+
+/* 图标样式优化 */
+.instrument-detail-panel .anticon {
+    color: #8c8c8c;
+}
+
+.instrument-detail-panel .anticon-line-chart,
+.instrument-detail-panel .anticon-dollar,
+.instrument-detail-panel .anticon-clock-circle {
+    color: #8c8c8c;
+    font-size: 12px;
+}
+
+/* 数据项分组样式 */
+.instrument-detail-panel .data-group {
+    margin-bottom: 16px;
+}
+
+.instrument-detail-panel .data-group:last-child {
+    margin-bottom: 0;
+}
+
+.instrument-detail-panel .data-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.instrument-detail-panel .data-item:last-child {
+    border-bottom: none;
+}
+
+.instrument-detail-panel .data-label {
+    color: #8c8c8c;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.instrument-detail-panel .data-value {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* 特殊数据样式 */
+.instrument-detail-panel .price-value {
+    color: #52c41a;
+    font-weight: 600;
+}
+
+.instrument-detail-panel .rate-positive {
+    color: #ff4d4f;
+}
+
+.instrument-detail-panel .rate-negative {
+    color: #52c41a;
+}
+
+.instrument-detail-panel .rate-neutral {
+    color: #8c8c8c;
+}
+
+/* 紧凑模式样式 */
+.instrument-detail-panel.compact {
+    margin-top: 16px;
+    margin-bottom: 12px;
+}
+
+/* 无头部样式 */
+.instrument-detail-panel.no-header .ant-card-head {
+    display: none;
+}
+
+.instrument-detail-panel.no-header .ant-card-body {
+    padding: 16px;
+}
+
+.instrument-detail-panel.no-header.compact .ant-card-body {
+    padding: 12px 16px;
+}
+
+.instrument-detail-panel.compact .ant-card-body {
+    padding: 12px 16px;
+}
+
+.instrument-detail-panel.compact .ant-card-head {
+    padding: 12px 16px;
+}
+
+.instrument-detail-panel.compact .ant-card-head-title {
+    font-size: 13px;
+}
+
+/* 紧凑内容样式 */
+.instrument-detail-panel .compact-content {
+    padding: 4px 0;
+}
+
+.instrument-detail-panel .compact-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 70px;
+    flex: 1;
+    flex-shrink: 0;
+}
+
+.instrument-detail-panel .compact-label {
+    font-size: 9px;
+    color: #8c8c8c;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+/* 加载状态骨架屏样式 */
+.instrument-detail-panel .compact-item .ant-skeleton {
+    background: transparent;
+}
+
+.instrument-detail-panel .compact-item .ant-skeleton-input {
+    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+}
+
+.instrument-detail-panel .compact-item .ant-skeleton-button {
+    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+}
+
+/* 骨架屏加载动画 */
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.instrument-detail-panel .compact-item .ant-skeleton-input::after,
+.instrument-detail-panel .compact-item .ant-skeleton-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    animation: skeleton-loading 1.5s infinite;
+}
+
+/* 加载状态时的占位效果 */
+.instrument-detail-panel .compact-item .loading-placeholder {
+    width: 100%;
+    height: 16px;
+    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: skeleton-loading 1.5s infinite;
+}
+
+.instrument-detail-panel .compact-item .loading-placeholder.large {
+    height: 20px;
+}
+
+/* 数据加载完成后的淡入效果 */
+.instrument-detail-panel .compact-item .loaded-data {
+    animation: data-fade-in 0.3s ease-in;
+}
+
+@keyframes data-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* 涨跌幅显示样式 - 红正绿负，无背景 */
+.instrument-detail-panel .compact-change {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    /* 移除transition以避免数据更新时的闪烁 */
+}
+
+.instrument-detail-panel .compact-change.change-positive {
+    color: #ff4d4f; /* 红色表示正涨跌幅 */
+}
+
+.instrument-detail-panel .compact-change.change-negative {
+    color: #52c41a; /* 绿色表示负涨跌幅 */
+}
+
+.instrument-detail-panel .compact-change.change-neutral {
+    color: #8c8c8c;
+}
+
+/* 倒计时样式 */
+.instrument-detail-panel .compact-countdown {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    /* 移除transition以避免数据更新时的闪烁 */
+}
+
+.instrument-detail-panel .compact-countdown.active {
+    color: #faad14;
+}
+
+.instrument-detail-panel .compact-countdown.settled {
+    color: #52c41a;
+}
+
+/* 滚动条样式（如果需要） */
+.instrument-detail-panel ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.instrument-detail-panel ::-webkit-scrollbar-track {
+    background: #1f1f1f;
+    border-radius: 3px;
+}
+
+.instrument-detail-panel ::-webkit-scrollbar-thumb {
+    background: #434343;
+    border-radius: 3px;
+}
+
+.instrument-detail-panel ::-webkit-scrollbar-thumb:hover {
+    background: #595959;
+}
+
+/* K线图相关样式 */
+.instrument-detail-panel .chart-container {
+    overflow: hidden;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+/* K线图动画 */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+        max-height: 500px;
+    }
+}
+
+/* K线图标悬停效果 */
+.instrument-detail-panel .compact-item .anticon-line-chart {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.instrument-detail-panel .compact-item .anticon-line-chart:hover {
+    color: #1890ff !important;
+    transform: scale(1.1);
+}
+
+.instrument-detail-panel .compact-item .anticon-line-chart.active {
+    color: #1890ff !important;
+}
+
+/* K线图卡片样式适配 */
+.instrument-detail-panel .chart-container .ant-card {
+    background: #1f1f1f;
+    border: 1px solid #434343;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.instrument-detail-panel .chart-container .ant-card-head {
+    background: #262626;
+    border-bottom: 1px solid #434343;
+}
+
+.instrument-detail-panel .chart-container .ant-card-head-title {
+    color: #ffffff;
+}
+
+.instrument-detail-panel .chart-container .ant-card-body {
+    background: #1f1f1f;
+    padding: 8px;
+}
+
+/* K线图周期选择器样式 */
+.instrument-detail-panel .chart-container .ant-select {
+    background: #2a2a2a;
+    border: 1px solid #434343;
+}
+
+.instrument-detail-panel .chart-container .ant-select-selector {
+    background: #2a2a2a !important;
+    border: 1px solid #434343 !important;
+    color: #ffffff !important;
+}
+
+.instrument-detail-panel .chart-container .ant-select-selection-item {
+    color: #ffffff !important;
+}
+
+/* K线图按钮样式 */
+.instrument-detail-panel .chart-container .ant-btn {
+    background: #2a2a2a;
+    border: 1px solid #434343;
+    color: #8c8c8c;
+}
+
+.instrument-detail-panel .chart-container .ant-btn:hover {
+    background: #3a3a3a;
+    border-color: #595959;
+    color: #ffffff;
+}
+
+.instrument-detail-panel .chart-container .ant-btn-loading {
+    background: #2a2a2a;
+    border-color: #434343;
+}
+
+/* 加载状态适配 */
+.instrument-detail-panel .chart-container .ant-spin-container {
+    background: #1f1f1f;
+}
+
+.instrument-detail-panel .chart-container .ant-spin-text {
+    color: #8c8c8c;
+}
+
+/* K线图响应式设计 */
+@media (max-width: 768px) {
+    .instrument-detail-panel .chart-container {
+        margin-top: 12px;
+    }
+
+    .instrument-detail-panel .chart-container .ant-card-body {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .instrument-detail-panel .chart-container {
+        margin-top: 8px;
+    }
+
+    .instrument-detail-panel .chart-container .ant-card-body {
+        padding: 8px;
+    }
+
+    .instrument-detail-panel .chart-container .ant-select {
+        width: 100px !important;
+    }
+}
+
+/* 平滑过渡效果 */
+.chart-enter {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+.chart-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 0.3s ease-out;
+}
+
+.chart-exit {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.chart-exit-active {
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease-in;
+}
+
+/* 数值变化脉冲动画 */
+@keyframes valueChange {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+        filter: brightness(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.instrument-detail-panel .value-changed {
+    animation: valueChange 0.6s ease-in-out;
+}
+
+/* 倒计时脉冲效果 - 已移除以避免闪烁 */
+/*
+@keyframes countdownPulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+*/
+
+.instrument-detail-panel .compact-countdown.active {
+    /* 移除无限循环动画以避免闪烁 */
+    color: #faad14;
+}
+
+/* 数据加载时的淡入效果 - 已移除以避免闪烁 */
+/*
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+*/
+
+.instrument-detail-panel .compact-content {
+    /* 移除淡入动画以避免闪烁 */
+}
+
+/* 状态变化过渡 - 已移除以避免闪烁 */
+/*
+.instrument-detail-panel .compact-item {
+    transition: all 0.2s ease;
+}
+*/
+
+.instrument-detail-panel .compact-item:hover {
+    /* 移除transform和filter以避免闪烁 */
+}
+
+/* 确保紧凑元素在不同屏幕尺寸下都能保持在一行显示 */
+@media (max-width: 1200px) {
+    .instrument-detail-panel .compact-item {
+        min-width: 70px;
+    }
+
+    .instrument-detail-panel .compact-label {
+        font-size: 8px;
+    }
+
+    .instrument-detail-panel .compact-change {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 768px) {
+    .instrument-detail-panel .compact-item {
+        min-width: 65px;
+        gap: 1px;
+    }
+
+    .instrument-detail-panel .compact-label {
+        font-size: 7px;
+    }
+
+    .instrument-detail-panel .compact-change {
+        font-size: 10px;
+    }
+}

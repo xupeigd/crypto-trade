@@ -1,0 +1,11 @@
+{
+  "action": "SELL",
+  "instId": "BTC-USDT-SWAP",
+  "orderType": "MARKET",
+  "price": 42200,
+  "quantity": 0.1,
+  "takeProfit": 39000,
+  "stopLoss": 44000,
+  "confidence": 80,
+  "reasoning": "技术指标显示下跌趋势,MACD死叉,成交量萎缩"
+}

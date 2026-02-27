@@ -1,0 +1,382 @@
+package com.crypto.trade.service.conversation;
+
+import com.crypto.trade.dto.TradingResult;
+import com.crypto.trade.service.TradingOrderService;
+import com.crypto.trade.service.okx.OkxApiService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 交易动作处理器
+ * <p>
+ * 负责处理大模型决策JSON中的BUY/SELL动作，自动调用TradingOrderService执行交易。
+ * </p>
+ * <p>
+ * 核心功能：
+ * <ul>
+ *   <li>1. 解析ActionPack，提取BUY/SELL动作</li>
+ *   <li>2. 验证执行条件（置信度、风控、配置开关）</li>
+ *   <li>3. 调用TradingOrderService.placeOrder()执行交易</li>
+ *   <li>4. 记录执行结果</li>
+ * </ul>
+ * </p>
+ * <p>
+ * 安全机制：
+ * <ul>
+ *   <li>配置开关：默认关闭，需手动开启</li>
+ *   <li>模拟模式：dry-run模式验证参数但不真实下单</li>
+ *   <li>风控检查：资金充足性、风险等级验证</li>
+ *   <li>完整审计：记录所有执行细节</li>
+ * </ul>
+ * </p>
+ *
+ * @author Page
+ * @since 2025-01-03
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class TradeActionProcessor {
+
+    private final TradingOrderService tradingOrderService;
+    private final TradingConfigProperties config;
+    private final OkxApiService okxApiService;
+
+    /**
+     * 处理交易动作
+     * <p>
+     * 从ActionPack中提取BUY/SELL动作，验证后执行交易。
+     * </p>
+     *
+     * @param actionPack 解析后的动作包
+     * @param apiKeyId   API密钥ID
+     * @return 执行结果列表
+     */
+    public List<TradeExecutionResult> processTradeActions(ActionParser.ActionPack actionPack, Long apiKeyId) {
+        List<TradeExecutionResult> results = new ArrayList<>();
+
+        // 检查是否启用自动交易
+        if (!config.getAutoExecution()) {
+            log.info("自动交易未启用，跳过交易执行");
+            return results;
+        }
+
+        // 验证配置
+        if (!config.isValid()) {
+            log.error("交易配置无效，请检查application.yml配置");
+            return results;
+        }
+
+        // 检查执行模式
+        if (config.isDryRunMode()) {
+            log.info("当前为模拟执行模式（dry-run），不会真实下单");
+        } else if (config.isLiveMode()) {
+            log.warn("当前为实盘执行模式（live），将真实下单交易！");
+        }
+
+        // 遍历所有动作
+        List<ActionParser.ParsedAction> actions = actionPack.getActions();
+        if (actions == null || actions.isEmpty()) {
+            log.warn("动作包中没有动作需要处理");
+            return results;
+        }
+
+        for (ActionParser.ParsedAction action : actions) {
+            try {
+                // 只处理BUY和SELL动作
+                String actionType = action.getAction().name();
+                if (!"BUY".equalsIgnoreCase(actionType) && !"SELL".equalsIgnoreCase(actionType)) {
+                    log.debug("跳过非交易动作: {}", actionType);
+                    continue;
+                }
+
+                // 验证是否应该执行此交易
+                if (!shouldExecuteTrade(action)) {
+                    log.info("交易未通过验证，跳过执行 - instId: {}, action: {}",
+                            action.getInstId(), action.getAction().name());
+                    continue;
+                }
+
+                // 执行交易
+                TradeExecutionResult result = executeTradeAction(action, apiKeyId);
+                results.add(result);
+
+                // 记录执行结果
+                logExecutionResult(result);
+
+            } catch (Exception e) {
+                log.error("处理交易动作失败 - instId: {}, action: {}",
+                        action.getInstId(), action.getAction().name(), e);
+                results.add(TradeExecutionResult.failure(
+                        action.getInstId(),
+                        action.getAction().name(),
+                        "处理失败: " + e.getMessage(),
+                        0L
+                ));
+            }
+        }
+
+        log.info("交易动作处理完成 - 总数: {}, 成功: {}, 失败: {}",
+                results.size(),
+                results.stream().filter(TradeExecutionResult::getSuccess).count(),
+                results.stream().filter(r -> !r.getSuccess()).count());
+
+        return results;
+    }
+
+    /**
+     * 验证是否应该执行交易
+     * <p>
+     * 验证条件：
+     * <ul>
+     *   <li>1. 置信度检查：confidence >= minConfidence</li>
+     *   <li>2. 参数完整性：instId、quantity不能为空</li>
+     *   <li>3. 金额范围：minAmount <= quantity <= maxAmount</li>
+     *   <li>4. 资金充足性：可用余额 >= 交易金额</li>
+     * </ul>
+     * </p>
+     *
+     * @param action 交易动作
+     * @return 是否应该执行
+     */
+    private boolean shouldExecuteTrade(ActionParser.ParsedAction action) {
+        // 1. 置信度检查
+        Integer confidence = action.getConfidence();
+        if (confidence == null || confidence < config.getMinConfidence()) {
+            log.info("置信度不足 - 当前: {}, 要求: >= {}", confidence, config.getMinConfidence());
+            return false;
+        }
+
+        // 2. 参数完整性检查
+        if (action.getInstId() == null || action.getInstId().trim().isEmpty()) {
+            log.warn("合约代码为空，跳过执行");
+            return false;
+        }
+
+        BigDecimal quantity = action.getQuantity();
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            log.warn("交易数量无效: {}，跳过执行", quantity);
+            return false;
+        }
+
+        // 3. 金额范围检查
+        double amount = quantity.doubleValue();
+        if (amount < config.getMinAmount()) {
+            log.info("交易金额过小 - 当前: {}, 要求: >= {}", amount, config.getMinAmount());
+            return false;
+        }
+
+        if (amount > config.getMaxAmount()) {
+            log.info("交易金额过大 - 当前: {}, 要求: <= {}", amount, config.getMaxAmount());
+            return false;
+        }
+
+        // 4. 资金充足性检查（如果启用了风控）
+        if (config.getEnableRiskControl()) {
+            // TODO: 实现资金充足性检查
+            // 需要查询账户可用余额
+            log.debug("风控检查已启用，但资金充足性检查待实现");
+        }
+
+        return true;
+    }
+
+    /**
+     * 执行单个交易动作
+     * <p>
+     * 参数映射：
+     * <ul>
+     *   <li>action (BUY/SELL) → side (buy/sell)</li>
+     *   <li>instId → instId</li>
+     *   <li>quantity → amount (成本金额)</li>
+     *   <li>price → px (限价单价格)</li>
+     *   <li>takeProfit → takeProfitPrice</li>
+     *   <li>stopLoss → stopLossPrice</li>
+     *   <li>posSide → posSide</li>
+     * </ul>
+     * </p>
+     *
+     * @param action  交易动作
+     * @param apiKeyId API密钥ID
+     * @return 执行结果
+     */
+    private TradeExecutionResult executeTradeAction(ActionParser.ParsedAction action, Long apiKeyId) {
+        long startTime = System.currentTimeMillis();
+
+        // 检查是否为模拟模式
+        if (config.isDryRunMode()) {
+            return executeDryRun(action);
+        }
+
+        // 实盘执行
+        try {
+            // 映射参数
+            String side = mapActionToSide(action.getAction().name());
+            String orderType = determineOrderType(action);
+            BigDecimal amount = action.getQuantity();
+            BigDecimal lever = BigDecimal.valueOf(config.getDefaultLeverage());
+            BigDecimal px = action.getPrice();
+            BigDecimal takeProfitPrice = action.getTakeProfit();
+            BigDecimal stopLossPrice = action.getStopLoss();
+            String posSide = action.getPosSide();
+
+            // 默认持仓方向
+            if (posSide == null || posSide.trim().isEmpty()) {
+                posSide = "buy".equalsIgnoreCase(side) ? "long" : "short";
+            }
+
+            log.info("执行交易 - instId: {}, side: {}, amount: {}, lever: {}, posSide: {}",
+                    action.getInstId(), side, amount, lever, posSide);
+
+            // 调用TradingOrderService下单
+            TradingResult tradingResult = tradingOrderService.placeOrder(
+                    apiKeyId,
+                    action.getInstId(),
+                    side,
+                    orderType,
+                    amount,
+                    lever,
+                    px,
+                    takeProfitPrice,
+                    stopLossPrice,
+                    posSide,
+                    false
+            );
+
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            // 判断执行结果
+            if (tradingResult != null && tradingResult.getSuccess()) {
+                return TradeExecutionResult.success(
+                        action.getInstId(),
+                        action.getAction().name(),
+                        tradingResult.getOrderId(),
+                        tradingResult.getAvgPx() != null ? tradingResult.getAvgPx() : px,
+                        tradingResult.getAccFillSz(),
+                        executionTime,
+                        false
+                );
+            } else {
+                return TradeExecutionResult.failure(
+                        action.getInstId(),
+                        action.getAction().name(),
+                        tradingResult != null ? tradingResult.getMessage() : "下单失败",
+                        executionTime
+                );
+            }
+
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            log.error("执行交易失败 - instId: {}, action: {}",
+                    action.getInstId(), action.getAction().name(), e);
+            return TradeExecutionResult.failure(
+                    action.getInstId(),
+                    action.getAction().name(),
+                    "执行异常: " + e.getMessage(),
+                    executionTime
+            );
+        }
+    }
+
+    /**
+     * 模拟执行（dry-run）
+     * <p>
+     * 验证所有参数，但不真实下单。
+     * </p>
+     *
+     * @param action 交易动作
+     * @return 模拟执行结果
+     */
+    private TradeExecutionResult executeDryRun(ActionParser.ParsedAction action) {
+        log.info("[模拟执行] 验证交易参数 - instId: {}, action: {}, quantity: {}, confidence: {}",
+                action.getInstId(),
+                action.getAction().name(),
+                action.getQuantity(),
+                action.getConfidence());
+
+        // 构建详细的模拟执行消息
+        StringBuilder message = new StringBuilder();
+        message.append("模拟执行验证通过：\n");
+        message.append(String.format("  合约: %s\n", action.getInstId()));
+        message.append(String.format("  动作: %s\n", action.getAction().name()));
+        message.append(String.format("  数量: %s\n", action.getQuantity()));
+        message.append(String.format("  价格: %s\n", action.getPrice()));
+        message.append(String.format("  止盈: %s\n", action.getTakeProfit()));
+        message.append(String.format("  止损: %s\n", action.getStopLoss()));
+        message.append(String.format("  置信度: %d%%\n", action.getConfidence()));
+        message.append("  注意：当前为模拟模式，未真实下单");
+
+        return TradeExecutionResult.dryRun(
+                action.getInstId(),
+                action.getAction().name(),
+                message.toString()
+        );
+    }
+
+    /**
+     * 映射动作到交易方向
+     *
+     * @param action BUY/SELL
+     * @return buy/sell
+     */
+    private String mapActionToSide(String action) {
+        if ("BUY".equalsIgnoreCase(action)) {
+            return "buy";
+        } else if ("SELL".equalsIgnoreCase(action)) {
+            return "sell";
+        } else {
+            throw new IllegalArgumentException("不支持的动作类型: " + action);
+        }
+    }
+
+    /**
+     * 确定订单类型
+     * <p>
+     * 如果决策中指定了价格，使用限价单（limit）；
+     * 否则使用市价单（market）。
+     * </p>
+     *
+     * @param action 交易动作
+     * @return market/limit
+     */
+    private String determineOrderType(ActionParser.ParsedAction action) {
+        // 如果指定了价格，使用限价单
+        if (action.getPrice() != null && action.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+            return "limit";
+        }
+        // 否则使用市价单
+        return "market";
+    }
+
+    /**
+     * 记录执行结果
+     *
+     * @param result 执行结果
+     */
+    private void logExecutionResult(TradeExecutionResult result) {
+        if (result.getSuccess()) {
+            if (result.getDryRun()) {
+                log.info("交易模拟执行成功 - instId: {}, action: {}\n{}",
+                        result.getInstId(), result.getAction(), result.getErrorMessage());
+            } else {
+                log.info("交易执行成功 - instId: {}, action: {}, orderId: {}, price: {}, size: {}, 耗时: {}ms",
+                        result.getInstId(),
+                        result.getAction(),
+                        result.getOrderId(),
+                        result.getExecutedPrice(),
+                        result.getExecutedSize(),
+                        result.getExecutionTimeMs());
+            }
+        } else {
+            log.error("交易执行失败 - instId: {}, action: {}, 错误: {}",
+                    result.getInstId(),
+                    result.getAction(),
+                    result.getErrorMessage());
+        }
+    }
+}

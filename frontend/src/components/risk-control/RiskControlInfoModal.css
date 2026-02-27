@@ -1,0 +1,284 @@
+/* 主弹窗样式 */
+.risk-control-info-modal .ant-modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 24px;
+}
+
+.risk-control-info-modal .ant-modal-title {
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
+}
+
+.risk-control-info-modal .ant-modal-body {
+    padding: 24px;
+    background-color: #141414;
+}
+
+.risk-control-info-modal .ant-modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 24px;
+}
+
+/* 暗色主题适配 */
+.risk-control-info-modal .ant-modal-content {
+    background-color: #1f1f1f;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.risk-control-info-modal .ant-modal-close {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.risk-control-info-modal .ant-modal-close:hover {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* 按钮样式 */
+.risk-control-info-modal .ant-btn {
+    border-radius: 6px;
+    height: 36px;
+    font-weight: 500;
+}
+
+/* 订单列表容器 */
+.order-list {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* 滚动条样式 */
+.order-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.order-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.order-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.order-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 订单详情卡片 */
+.order-detail-card {
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+}
+
+.order-detail-card:hover {
+    border-color: rgba(24, 144, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.order-detail-card:last-child {
+    margin-bottom: 0;
+}
+
+/* 卡片头部 */
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.order-id {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+    margin-left: auto;
+}
+
+/* 卡片主体 */
+.card-body {
+    padding: 16px;
+}
+
+/* 信息区块 */
+.info-section {
+    margin-bottom: 16px;
+}
+
+.info-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 详情行 */
+.detail-row {
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.detail-row .label {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.detail-row .value {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 13px;
+    font-weight: 400;
+    word-break: break-all;
+}
+
+/* 实时价格样式 */
+.realtime-price {
+    font-weight: 600;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 15px;
+    color: #52c41a;
+    transition: all 0.3s ease;
+}
+
+.realtime-price-updating {
+    position: relative;
+}
+
+.loading-dot {
+    display: inline-block;
+    margin-left: 4px;
+    animation: blink 1.4s infinite both;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+@keyframes blink {
+    0%, 80%, 100% {
+        opacity: 0;
+    }
+    40% {
+        opacity: 1;
+    }
+}
+
+/* 止盈止损详情样式 */
+.stop-loss-detail {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.stop-loss-detail .percentage-value {
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.stop-loss-detail .expected-value {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 11px;
+}
+
+/* 预估资金提示 */
+.capital-estimation {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    background-color: rgba(24, 144, 255, 0.1);
+    border: 1px solid rgba(24, 144, 255, 0.25);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+.capital-estimation .anticon {
+    color: #1890ff;
+    font-size: 14px;
+}
+
+/* 标签样式 */
+.risk-control-info-modal .ant-tag {
+    margin: 0;
+    padding: 2px 8px;
+    font-size: 12px;
+    border: none;
+    font-weight: 500;
+}
+
+/* 动画效果 */
+.risk-control-info-modal .ant-modal-mask {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.risk-control-info-modal .ant-modal-wrap {
+    overflow: auto;
+}
+
+/* 实时价格刷新动画 */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 百分比颜色 */
+.percentage-positive {
+    color: #52c41a !important;
+}
+
+.percentage-negative {
+    color: #ff4d4f !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .risk-control-info-modal {
+        margin: 0;
+        max-width: 100vw;
+        top: 0;
+    }
+
+    .risk-control-info-modal .ant-modal-content {
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .order-list {
+        max-height: 400px;
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+    }
+
+    .order-id {
+        margin-left: 0;
+        width: 100%;
+        text-align: right;
+    }
+}

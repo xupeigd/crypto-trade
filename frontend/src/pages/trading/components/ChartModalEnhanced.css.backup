@@ -1,0 +1,1736 @@
+/* 🎨 K线图弹窗增强布局样式 */
+
+/* 主要容器 - 上下20%:80%布局 */
+.chart-modal-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 20% 80%;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+    min-height: 0;
+    background: linear-gradient(135deg, #1a1a1a 0%, #1f1f1f 50%, #1a1a1a 100%);
+}
+
+/* 新布局样式 */
+.chart-modal-container.new-layout {
+    grid-template-areas:
+        "top-section"
+        "bottom-section";
+}
+
+/* 单栏布局样式 - 720px以下垂直布局 */
+.chart-modal-container.single-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100%;
+    width: 100%;
+    padding: 8px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* single-column各区域布局规则 */
+.chart-modal-container.single-column .timeframe-section {
+    flex: 0 0 auto;
+    min-height: 110px;
+    max-height: 160px;
+    overflow-y: hidden;
+}
+
+.chart-modal-container.single-column .chart-area {
+    flex: 1;
+    min-height: 300px;
+    background: rgba(31, 31, 31, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-modal-container.single-column .ant-card {
+    flex: 0 0 auto;
+    min-height: 130px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.chart-modal-container.single-column .quick-trading-area {
+    flex: 0 0 auto;
+    min-height: 320px; /* 确保足够高度显示6行 */
+    max-height: 400px; /* 设置合理的最大高度，超出时允许滚动 */
+    overflow-y: auto; /* 重新允许滚动 */
+}
+
+/* 上半部分 - 时间帧+技术指标 (20%高度) */
+.top-section {
+    grid-area: top-section;
+    display: grid;
+    grid-template-columns: 1fr 2fr; /* 时间帧 : 技术指标 */
+    gap: 12px;
+    min-height: auto;
+    height: auto;
+    align-items: start; /* 顶部对齐 */
+}
+
+/* 下半部分 - K线图+快捷交易 (80%高度) - 统一使用Grid布局 */
+.bottom-section {
+    grid-area: bottom-section;
+    display: grid;
+    grid-template-columns: 4fr 1fr; /* 图表:交易 = 4:1 */
+    height: 100%;
+    gap: 12px;
+    align-items: start;
+}
+
+/* 时间帧控制区域 */
+.timeframe-section {
+    background: #1f1f1f;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 8px;
+    /* Grid默认将第一个元素放在第一列，无需显式指定 */
+}
+
+/* 技术分析区域 */
+.indicators-section {
+    background: rgba(31, 31, 31, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+    overflow-y: hidden;
+}
+
+/* 右侧技术指标区域 - 修复Grid布局冲突 */
+.indicators-section.right-aligned {
+    /* 移除手动grid-column，让Grid按DOM顺序自动排列 */
+    /* 优化尺寸约束，让高度自适应内容 */
+    min-height: auto;
+    max-height: none;
+    overflow-y: visible;
+    /* 移除干扰Grid布局的属性 */
+    /* justify-self: stretch; - 移除，让Grid自动处理 */
+    /* align-self: stretch; - 移除，让Grid自动处理 */
+}
+
+/* 技术指标面板 - 内容左对齐 */
+.modal-indicators-panel.right-aligned-panel {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: auto;
+    text-align: left; /* 确保内容左对齐 */
+    /* 确保面板可以正确填充容器 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 右对齐技术指标面板的按钮区域 */
+.modal-indicators-panel.right-aligned-panel .indicator-buttons-section {
+    display: flex;
+    justify-content: flex-start; /* 按钮区域左对齐 */
+    width: 100%;
+}
+
+/* 确保按钮行内容左对齐 */
+.modal-indicators-panel.right-aligned-panel .ant-space {
+    justify-content: flex-start;
+    width: 100%;
+}
+
+/* 指标按钮容器保持左对齐 */
+.modal-indicators-panel.right-aligned-panel .ant-space-item {
+    text-align: left;
+}
+
+/* 快捷操作区域保持左对齐 */
+.modal-indicators-panel.right-aligned-panel .ant-space-vertical {
+    align-items: flex-start;
+}
+
+/* 快捷操作按钮组 */
+.modal-indicators-panel.right-aligned-panel .ant-btn {
+    text-align: left;
+    justify-content: flex-start;
+}
+
+/* K线图区域 - Grid子元素 */
+.chart-area {
+    grid-column: 1; /* 固定在第一列 */
+    background: rgba(31, 31, 31, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+/* 快捷交易面板包装器 - Grid子元素 */
+.quick-trading-area-wrapper {
+    grid-column: 2; /* 固定在第二列 */
+    height: 100%;
+    min-height: 0;
+}
+
+/* 快捷交易面板区域 */
+.quick-trading-area {
+    background: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: grid;
+    grid-template-rows: auto 1fr; /* 信息展示区自适应 : 交易操作区占剩余空间 */
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+}
+
+.quick-trading-area:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* 快捷交易面板 - 信息展示区 (上半部分 50%高度) */
+.info-display-section {
+    background: rgba(31, 31, 31, 0.9);
+    padding: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 左侧信息 : 右侧计算 */
+    gap: 8px;
+    overflow-y: hidden;
+    align-content: stretch;
+    min-height: 0;
+}
+
+.trade-info-left,
+.trade-info-right {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* 快捷交易面板 - 交易操作区 (6行布局) */
+.trading-controls-section {
+    background: rgba(26, 26, 26, 0.9);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* 减少间距以节省垂直空间 */
+    overflow-y: auto; /* 重新允许滚动 */
+    min-height: 0;
+    flex: 1; /* 让其自然伸展 */
+}
+
+/* 6行布局样式 */
+.control-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+}
+
+.control-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #ffffff;
+    margin-bottom: 2px;
+    white-space: nowrap;
+}
+
+/* 订单类型行 */
+.order-type-row {
+    flex: 0 0 auto;
+}
+
+.order-type-selector {
+    display: flex;
+    gap: 4px;
+}
+
+.order-type-selector button {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #ffffff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.order-type-selector button.active {
+    background: #1890ff;
+    border-color: #1890ff;
+    color: #ffffff;
+}
+
+.order-type-selector button:hover:not(.active) {
+    background: rgba(24, 144, 255, 0.1);
+    border-color: #1890ff;
+}
+
+/* 限价行 */
+.limit-price-row {
+    flex: 0 0 auto;
+}
+
+.limit-price-input {
+    width: 100%;
+    padding: 4px 6px;
+    font-size: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #ffffff;
+    border-radius: 4px;
+    outline: none;
+}
+
+.limit-price-input:focus {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 成本金额行 */
+.amount-row {
+    flex: 0 0 auto;
+}
+
+.amount-selector {
+    display: flex;
+    gap: 4px;
+}
+
+.amount-selector button {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #ffffff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.amount-selector button.active {
+    background: #52c41a;
+    border-color: #52c41a;
+    color: #ffffff;
+}
+
+.amount-selector button:hover:not(.active) {
+    background: rgba(82, 196, 26, 0.1);
+    border-color: #52c41a;
+}
+
+/* 杠杆行 */
+.leverage-row {
+    flex: 0 0 auto;
+}
+
+.leverage-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.leverage-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1890ff;
+}
+
+.leverage-note {
+    font-size: 10px;
+    color: #888888;
+}
+
+/* 止盈止损行 */
+.take-profit-row,
+.stop-loss-row {
+    flex: 0 0 auto;
+}
+
+.profit-loss-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; /* 减少间距节省垂直空间 */
+}
+
+.profit-loss-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.profit-loss-header input[type="checkbox"] {
+    margin: 0;
+}
+
+.profit-loss-header label {
+    font-size: 10px;
+    color: #ffffff;
+    margin: 0;
+}
+
+.mode-selector {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.mode-selector button {
+    padding: 2px 6px;
+    font-size: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #ffffff;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-selector button.active {
+    background: #1890ff;
+    border-color: #1890ff;
+    color: #ffffff;
+}
+
+.profit-loss-input input {
+    width: 100%;
+    padding: 3px 6px;
+    font-size: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #ffffff;
+    border-radius: 4px;
+    outline: none;
+}
+
+.profit-loss-input input:focus {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* 快捷交易面板内容样式 */
+.trade-info-item {
+    font-size: 10px;
+    padding: 2px 0;
+}
+
+.info-label {
+    color: #888888;
+    font-weight: normal;
+    margin-bottom: 1px;
+}
+
+.info-value {
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+.info-value.positive {
+    color: #52c41a;
+}
+
+.info-value.negative {
+    color: #ff4d4f;
+}
+
+/* 交易控件样式 */
+.order-type-selector {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.order-type-selector button {
+    flex: 1;
+    padding: 4px;
+    font-size: 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #b0b0b0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.order-type-selector button.active {
+    background: rgba(24, 144, 255, 0.2);
+    color: #1890ff;
+    border-color: #1890ff;
+}
+
+.amount-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.amount-selector button {
+    padding: 6px 4px;
+    font-size: 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(42, 42, 42, 0.8);
+    color: #b0b0b0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.amount-selector button.active {
+    background: rgba(24, 144, 255, 0.2);
+    color: #1890ff;
+    border-color: #1890ff;
+}
+
+.trading-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: auto;
+}
+
+.trading-buttons button {
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.buy-button {
+    background: linear-gradient(135deg, #1890ff, #40a9ff);
+    color: white;
+}
+
+.buy-button:hover {
+    background: linear-gradient(135deg, #40a9ff, #69c0ff);
+}
+
+.sell-button {
+    background: linear-gradient(135deg, #ff4d4f, #ff7875);
+    color: white;
+}
+
+.sell-button:hover {
+    background: linear-gradient(135deg, #ff7875, #ff9c9c);
+}
+
+/* 风险提示 */
+.risk-warning {
+    font-size: 9px;
+    color: #faad14;
+    padding: 4px;
+    background: rgba(250, 173, 20, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(250, 173, 20, 0.2);
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* 重新设计的响应式断点系统 - 五个精确断点确保布局一致性 */
+
+/* 大屏幕优化 (>1200px) - 保持原有布局，微调比例 */
+@media (min-width: 1200px) {
+    .chart-modal-container.new-layout {
+        grid-template-rows: 25% 75%; /* 控制面板25%，图表75% */
+    }
+
+    /* 强制Flexbox水平布局 - 1200px宽度下1行2列布局 */
+    .chart-modal-container.new-layout .top-section {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 12px !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 100px !important;
+    }
+
+    /* 时间帧面板在左侧占1/3 */
+    .chart-modal-container.new-layout .top-section .timeframe-section {
+        flex: 1 !important;
+        min-width: 0 !important;
+        display: block !important;
+    }
+
+    /* 技术指标面板在右侧占2/3 */
+    .chart-modal-container.new-layout .top-section .indicators-section.right-aligned {
+        flex: 2 !important;
+        min-width: 0 !important;
+    }
+
+    .top-section {
+        grid-template-columns: 1fr 2fr; /* 时间帧 : 技术指标 = 1:2 */
+    }
+
+    .bottom-section {
+        grid-template-columns: 4fr 1fr; /* 图表:交易 = 4:1 */
+    }
+
+    .chart-area {
+        grid-column: 1; /* 图表在第一列 */
+    }
+
+    .quick-trading-area-wrapper {
+        grid-column: 2; /* 交易在第二列 */
+    }
+}
+
+/* 大平板适配 (1024px-1199px) - 调整比例适应中等屏幕 */
+@media (max-width: 1199px) and (min-width: 1024px) {
+    .chart-modal-container.new-layout {
+        grid-template-rows: 28% 72%; /* 控制面板28%，图表72% */
+    }
+
+    /* 强制Flexbox水平布局 - 1024-1199px宽度下1行2列布局 */
+    .chart-modal-container.new-layout .top-section {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+
+    /* 时间帧面板在左侧占1.2fr */
+    .chart-modal-container.new-layout .top-section .timeframe-section {
+        flex: 1.2 !important;
+        min-width: 0 !important;
+        display: block !important;
+    }
+
+    /* 技术指标面板在右侧占1.8fr */
+    .chart-modal-container.new-layout .top-section .indicators-section.right-aligned {
+        flex: 1.8 !important;
+        min-width: 0 !important;
+    }
+
+    .bottom-section {
+        grid-template-columns: 3.5fr 1fr; /* 图表:交易 = 3.5:1 */
+    }
+
+    /* 移除重复的grid-column定义，Grid会自动按顺序排列元素 */
+    .chart-area {
+        grid-column: 1;
+    }
+
+    .quick-trading-area-wrapper {
+        grid-column: 2;
+    }
+
+    /* 间距微调 */
+    .timeframe-section, .indicators-section {
+        padding: 8px;
+    }
+}
+
+/* 小平板和手机横屏适配 (720px-1023px) - 水平布局，保持顺序 */
+@media (max-width: 1023px) and (min-width: 720px) {
+    .chart-modal-container.new-layout {
+        grid-template-rows: 30% 70%; /* 控制面板30%，图表70% */
+    }
+
+    /* 强制Flexbox水平布局 - 768-1023px宽度下1行2列布局 */
+    .chart-modal-container.new-layout .top-section {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 8px !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 80px !important;
+    }
+
+    /* 时间帧面板在左侧占1fr */
+    .chart-modal-container.new-layout .top-section .timeframe-section {
+        flex: 1 !important;
+        min-width: 0 !important;
+        display: block !important;
+    }
+
+    /* 技术指标面板在右侧占1fr */
+    .chart-modal-container.new-layout .top-section .indicators-section.right-aligned {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+
+    /* 移除重复的grid-column定义，Grid会自动按顺序排列元素 */
+    .bottom-section {
+        grid-template-columns: 1fr; /* 改为单列垂直布局 */
+        grid-template-rows: 5fr 1fr; /* 图表:交易 = 5:1 */
+        gap: 8px;
+    }
+
+    .chart-area {
+        grid-column: 1;
+        grid-row: 1;
+        min-height: 300px;
+    }
+
+    .quick-trading-area-wrapper {
+        grid-column: 1;
+        grid-row: 2;
+        height: 120px;
+    }
+
+    .quick-trading-area {
+        grid-template-rows: 1fr 1fr; /* 信息:操作 = 1:1 */
+    }
+}
+
+/* 手机竖屏和小屏幕 (719px以下) - 垂直布局，确保完整展示 */
+@media (max-width: 719px) {
+    .chart-modal-container.new-layout {
+        grid-template-rows: auto 1fr; /* 控制面板自适应，图表占剩余空间 */
+    }
+
+    .top-section {
+        grid-template-columns: 1fr; /* 垂直堆叠 */
+        grid-template-rows: auto auto;
+        gap: 4px;
+    }
+
+    /* single-column布局特殊优化 */
+    .chart-modal-container.single-column {
+        gap: 6px;
+        padding: 6px;
+        min-height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .chart-modal-container.single-column .timeframe-section {
+        min-height: 100px;
+        max-height: 140px;
+        padding: 6px;
+    }
+
+    .chart-modal-container.single-column .chart-area {
+        min-height: 280px;
+        padding: 6px;
+    }
+
+    .chart-modal-container.single-column .ant-card {
+        min-height: 120px;
+        max-height: 200px;
+    }
+
+    .chart-modal-container.single-column .quick-trading-area {
+        min-height: 150px;
+        max-height: 180px;
+    }
+
+    .timeframe-section {
+        grid-column: 1;
+        grid-row: 1; /* 确保时间帧在第一行 */
+    }
+
+    .indicators-section {
+        grid-column: 1;
+        grid-row: 2; /* 技术指标在第二行 */
+    }
+
+    .bottom-section {
+        grid-template-columns: 1fr; /* 单列垂直布局 */
+        grid-template-rows: 6fr 1fr; /* 图表:交易 = 6:1 */
+        gap: 6px;
+    }
+
+    .chart-area {
+        grid-column: 1;
+        grid-row: 1;
+        min-height: 250px;
+    }
+
+    .quick-trading-area-wrapper {
+        grid-column: 1;
+        grid-row: 2;
+        height: 100px;
+    }
+
+    /* 压缩间距 */
+    .timeframe-section, .indicators-section {
+        padding: 8px;
+    }
+
+    /* 移动端按钮优化 */
+    .ant-btn {
+        min-height: 44px !important;
+        font-size: 13px !important;
+        padding: 6px 8px !important;
+    }
+
+    /* 时间帧和采样按钮极简优化 */
+    .timeframe-section .ant-btn,
+    .sample-controls-enhanced .ant-btn {
+        min-height: 36px !important;
+        font-size: 12px !important;
+        padding: 4px 8px !important;
+        min-width: 36px !important;
+    }
+
+    /* 技术指标按钮极简优化 */
+    .modal-indicators-panel .ant-btn {
+        min-height: 32px !important;
+        font-size: 11px !important;
+        padding: 4px 6px !important;
+        min-width: 32px !important;
+    }
+
+    /* 状态信息极简优化 */
+    .status-row {
+        font-size: 9px !important;
+        gap: 2px !important;
+    }
+
+    .status-label {
+        font-size: 10px !important;
+    }
+
+    .status-timeframe {
+        font-size: 10px !important;
+    }
+
+    .status-countdown {
+        font-size: 9px !important;
+        min-width: 25px !important;
+    }
+
+    /* 卡片标题极简优化 */
+    .ant-card-head-title {
+        font-size: 12px !important;
+    }
+
+    /* 时间和采样标签极简优化 */
+    .time-label-enhanced,
+    .sample-label-enhanced {
+        font-size: 10px !important;
+    }
+
+    /* 快捷交易信息字体优化 */
+    .trade-info-label,
+    .trade-info-value {
+        font-size: 10px !important;
+    }
+
+    /* 风险提示优化 */
+    .risk-warning {
+        font-size: 9px !important;
+        padding: 4px !important;
+    }
+
+    /* 进一步压缩间距 */
+    .ant-space-item {
+        margin: 0 !important;
+    }
+
+    .ant-card-body {
+        padding: 4px !important;
+    }
+
+    .ant-space {
+        gap: 2px !important;
+    }
+}
+
+
+/* 左侧信息面板 */
+.left-panel {
+    grid-row: 1 / 3;
+    background: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    overflow-y: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.left-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* 中间图表区域 */
+.chart-area {
+    grid-row: 1 / 3;
+    background: rgba(31, 31, 31, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+}
+
+/* 右侧快捷面板 */
+.right-panel {
+    grid-row: 1 / 3;
+    background: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px;
+    overflow-y: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.right-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* 控制面板区域 */
+.controls-section {
+    background: rgba(42, 42, 42, 0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+/* 时间帧控制 - 强制左对齐 */
+.top-section .timeframe-section .timeframe-controls-enhanced {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    margin-bottom: 0 !important;
+    text-align: left !important;
+}
+
+/* 最高优先级选择器 */
+.ant-modal-body .chart-modal-container .top-section .timeframe-section .timeframe-controls-enhanced {
+    justify-content: flex-start !important;
+}
+
+/* 确保所有子元素也左对齐 */
+.top-section .timeframe-section .timeframe-controls-enhanced > * {
+    text-align: left !important;
+}
+
+.time-label-enhanced {
+    color: #b0b0b0;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+/* 采样控制 - 强制左对齐 */
+.top-section .timeframe-section .sample-controls-enhanced {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    margin-top: 8px !important;
+    text-align: left !important;
+}
+
+/* 最高优先级选择器 */
+.ant-modal-body .chart-modal-container .top-section .timeframe-section .sample-controls-enhanced {
+    justify-content: flex-start !important;
+}
+
+/* 确保所有子元素也左对齐 */
+.top-section .timeframe-section .sample-controls-enhanced > * {
+    text-align: left !important;
+}
+
+.sample-label-enhanced {
+    color: #b0b0b0;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+/* 左侧面板内容 */
+.left-panel-section {
+    margin-bottom: 16px;
+}
+
+/* 弹窗中的技术指标配置面板优化 */
+.modal-indicators-panel {
+    background: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    overflow-y: hidden;
+    height: 100%;
+}
+
+.modal-indicators-panel .ant-card {
+    background: rgba(42, 42, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    height: 100%;
+}
+
+.modal-indicators-panel .ant-card-head {
+    background: rgba(31, 31, 31, 0.9);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.modal-indicators-panel .ant-card-head-title {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.modal-indicators-panel .ant-card-body {
+    padding: 8px;
+    position: relative;
+}
+
+/* 预设策略区域 - 绝对定位，避免影响主布局 */
+.modal-indicators-panel .preset-strategy-section {
+    background: rgba(36, 36, 36, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+}
+
+/* 指标按钮区域 - 确保在基础层级 */
+.modal-indicators-panel .indicator-buttons-section {
+    position: relative;
+    z-index: 100;
+}
+
+.modal-indicators-panel .ant-btn {
+    background: rgba(42, 42, 42, 0.8);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-indicators-panel .ant-btn:hover {
+    background: rgba(64, 64, 64, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.modal-indicators-panel .ant-btn.active {
+    background: linear-gradient(135deg, #2a2a2a, #333333);
+    border-color: #722ed1;
+    box-shadow: 0 2px 8px rgba(114, 46, 209, 0.3);
+}
+
+/* 指标按钮容器 - 确保始终在预设策略面板之上 */
+.modal-indicators-panel .ant-space-item {
+    position: relative;
+    z-index: 10;
+}
+
+.modal-indicators-panel .ant-space {
+    position: relative;
+    z-index: 10;
+}
+
+/* 下拉配置面板在弹窗中的样式优化 */
+.modal-indicators-panel .indicator-dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: 12px;
+    margin-top: 4px;
+    animation: slideDown 0.2s ease-out;
+}
+
+
+.modal-indicators-panel .preset-category {
+    margin-bottom: 12px;
+}
+
+.modal-indicators-panel .preset-category-title {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.modal-indicators-panel .preset-btn {
+    font-size: 11px;
+    height: 28px;
+    background: rgba(42, 42, 42, 0.8);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.modal-indicators-panel .preset-btn:hover {
+    background: rgba(64, 64, 64, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* 动画效果 */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.left-panel-title {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 指标项目样式 */
+.indicator-item {
+    background: rgba(42, 42, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.indicator-item:hover {
+    background: rgba(64, 64, 64, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(4px);
+}
+
+.indicator-item.active {
+    background: linear-gradient(135deg, #2a2a2a, #333333);
+    border-color: #722ed1;
+    box-shadow: 0 2px 8px rgba(114, 46, 209, 0.3);
+}
+
+/* 实时信息面板 */
+.realtime-info-item {
+    background: rgba(36, 36, 36, 0.8);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-label {
+    color: #808080;
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.info-value {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.info-value.positive {
+    color: #52c41a;
+}
+
+.info-value.negative {
+    color: #ff4d4f;
+}
+
+/* 右侧快捷操作 */
+.quick-action-button {
+    width: 100%;
+    margin-bottom: 8px;
+    background: rgba(42, 42, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.quick-action-button:hover {
+    background: rgba(64, 64, 64, 0.9);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+}
+
+.quick-action-button.primary {
+    background: linear-gradient(135deg, #1890ff, #40a9ff);
+    border-color: transparent;
+}
+
+.quick-action-button.danger {
+    background: linear-gradient(135deg, #ff4d4f, #ff7875);
+    border-color: transparent;
+}
+
+/* 顶部栏区域 - 时间帧控制 + 技术分析 */
+.top-bar {
+    grid-area: top-bar;
+    background: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    align-items: flex-start;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* 时间帧控制区域 - 修复为Grid项目 */
+.timeframe-section {
+    /* 移除 display: flex，让它成为Grid项目 */
+    align-items: center;
+    justify-content: flex-start;
+    /* 在Grid布局中，这里应该是block而不是flex */
+    display: block;
+}
+
+/* 技术分析区域 */
+.analysis-section {
+    overflow-y: visible;
+    min-height: 120px;
+    position: relative;
+}
+
+/* 主体图区域 - K线图 */
+.main-chart {
+    grid-area: main-chart;
+    background: rgba(31, 31, 31, 0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* 底部交易栏 */
+.trading-bar {
+    grid-area: trading-bar;
+    background: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+    max-height: 120px;
+}
+
+.trading-section {
+    width: 100%;
+    max-width: 400px;
+}
+
+/* 响应式布局 */
+.chart-modal-container.dual-column-compact {
+    gap: 10px;
+}
+
+@media (max-width: 1400px) {
+    .chart-modal-container.dual-column {
+        gap: 10px;
+    }
+
+    .top-bar {
+        padding: 10px;
+        gap: 12px;
+    }
+
+    .analysis-section {
+        max-height: 100px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .chart-modal-container.dual-column {
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas:
+            "top-bar"
+            "main-chart"
+            "trading-bar";
+        gap: 12px;
+    }
+
+    .top-bar {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+        grid-template-areas:
+            "timeframe"
+            "analysis";
+        padding: 8px;
+    }
+
+    .timeframe-section {
+        grid-area: timeframe;
+    }
+
+    .analysis-section {
+        grid-area: analysis;
+        max-height: 80px;
+    }
+
+    .main-chart {
+        min-height: 350px;
+    }
+
+    .trading-bar {
+        min-height: 60px;
+        max-height: 100px;
+    }
+}
+
+@media (max-width: 900px) {
+    .chart-modal-container.dual-column {
+        gap: 8px;
+    }
+
+    .top-bar {
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .analysis-section {
+        max-height: 60px;
+    }
+
+    .main-chart {
+        min-height: 250px;
+        padding: 8px;
+    }
+
+    .trading-bar {
+        min-height: 50px;
+        max-height: 80px;
+        padding: 8px;
+    }
+}
+
+/* 单栏布局适配 */
+@media (max-width: 719px) {
+    .chart-modal-container.dual-column {
+        gap: 6px;
+    }
+
+    .top-bar {
+        padding: 6px;
+        gap: 6px;
+        min-height: 60px;
+    }
+
+    .analysis-section {
+        max-height: 50px;
+    }
+
+    .trading-bar {
+        min-height: 40px;
+        max-height: 60px;
+        padding: 6px;
+    }
+}
+
+/* 玻璃态增强效果 */
+.glass-enhanced {
+    background: rgba(31, 31, 31, 0.75);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* 动画效果 */
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.left-panel {
+    animation: slideInLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.right-panel {
+    animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-area {
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 滚动条样式 */
+.left-panel::-webkit-scrollbar,
+.right-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.left-panel::-webkit-scrollbar-track,
+.right-panel::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.left-panel::-webkit-scrollbar-thumb,
+.right-panel::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.left-panel::-webkit-scrollbar-thumb:hover,
+.right-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 加载状态 */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(31, 31, 31, 0.9);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    z-index: 1000;
+}
+
+/* ===== 右侧对齐布局的响应式设计和视觉效果 ===== */
+
+/* 视觉效果增强 - 右侧区域阴影效果，强化右侧定位感 */
+.indicators-section.right-aligned {
+    position: relative;
+}
+
+.indicators-section.right-aligned::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 20%;
+    bottom: 20%;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.1), transparent);
+    opacity: 0.6;
+}
+
+/* 右侧面板轻微渐变，强调区域分离 */
+.indicators-section.right-aligned .modal-indicators-panel {
+    background: linear-gradient(135deg, rgba(31, 31, 31, 0.9) 0%, rgba(26, 26, 26, 0.85) 100%);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .top-section {
+        grid-template-columns: 1fr; /* 小屏幕垂直堆叠 */
+        gap: 8px;
+    }
+
+    .indicators-section.right-aligned {
+        justify-content: flex-start; /* 小屏幕左对齐 */
+    }
+
+    .indicators-section.right-aligned::before {
+        display: none; /* 小屏幕隐藏分割线 */
+    }
+
+    .modal-indicators-panel.right-aligned-panel {
+        background: rgba(31, 31, 31, 0.85); /* 小屏幕恢复纯色背景 */
+    }
+}
+
+@media (max-width: 576px) {
+    .top-section {
+        gap: 4px;
+    }
+
+    .indicators-section.right-aligned {
+        padding: 6px; /* 小屏幕减少内边距 */
+    }
+}
+
+/* 超小屏幕特殊优化 (< 480px) */
+@media (max-width: 479px) {
+    .chart-modal-container.single-column {
+        gap: 4px;
+        padding: 4px;
+        min-height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .chart-modal-container.single-column .timeframe-section {
+        min-height: 90px;
+        max-height: 120px;
+        padding: 4px;
+    }
+
+    .chart-modal-container.single-column .chart-area {
+        min-height: 250px;
+        padding: 4px;
+    }
+
+    .chart-modal-container.single-column .ant-card {
+        min-height: 110px;
+        max-height: 180px;
+    }
+
+    .chart-modal-container.single-column .quick-trading-area {
+        min-height: 140px;
+        max-height: 160px;
+    }
+
+    .top-section {
+        gap: 3px;
+    }
+
+    .indicators-section.right-aligned {
+        padding: 4px;
+    }
+}
+
+/* 动画和过渡效果 */
+/* 平滑过渡效果 */
+.indicators-section.right-aligned {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-indicators-panel.right-aligned-panel {
+    transition: all 0.2s ease;
+}
+
+/* 悬停效果 - 移除transform避免干扰Grid布局 */
+.indicators-section.right-aligned:hover {
+    /* transform: translateX(2px); - 移除，避免干扰Grid布局 */
+    /* 改用其他视觉效果 */
+    box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.indicators-section.right-aligned:hover::before {
+    opacity: 1;
+}
+
+/* ===== 模态框背景色修改 ===== */
+/* 覆盖 Ant Design 模态框背景色为 #1f1f1f */
+.ant-modal-content {
+    background-color: #1f1f1f !important;
+}
+
+.ant-modal-header {
+    background-color: #1f1f1f !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.ant-modal-body {
+    background-color: #1f1f1f !important;
+}
+
+.ant-modal-footer {
+    background-color: #1f1f1f !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ===== 技术指标卡片背景色修改 ===== */
+/* 覆盖技术指标卡片的背景色为 #1f1f1f */
+.modal-indicators.panel {
+    background-color: #1f1f1f !important;
+}
+
+.modal-indicators-panel {
+    background-color: #1f1f1f !important;
+}
+
+.modal-indicators-panel .ant-card {
+    background-color: #1f1f1f !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.modal-indicators-panel .ant-card-head {
+    background-color: #1f1f1f !important;
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ===== 技术指标按钮背景色修改 ===== */
+/* 覆盖技术指标按钮的背景色为 #1f1f1f */
+.modal-indicators-panel .ant-btn {
+    background-color: #1f1f1f !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.modal-indicators-panel .ant-btn:hover {
+    background-color: #2a2a2a !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ===== 移动端特殊优化 - 按钮、字体、间距 ===== */
+
+/* 手机横屏和竖屏的按钮优化 */
+@media (max-width: 767px) {
+    /* 确保所有按钮的最小点击区域为44px */
+    .ant-btn {
+        min-height: 44px !important;
+        min-width: 44px !important;
+        font-size: 14px !important;
+        padding: 8px 12px !important;
+    }
+
+    /* 时间帧和采样按钮特殊优化 */
+    .timeframe-section .ant-btn,
+    .sample-controls-enhanced .ant-btn {
+        min-height: 40px !important;
+        font-size: 13px !important;
+        padding: 6px 10px !important;
+    }
+
+    /* 技术指标按钮优化 */
+    .modal-indicators-panel .ant-btn {
+        min-height: 36px !important;
+        font-size: 12px !important;
+        padding: 6px 8px !important;
+    }
+
+    /* 快捷交易按钮优化 */
+    .quick-trading-area .ant-btn {
+        min-height: 44px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+    }
+
+    /* 状态行字体优化 */
+    .status-row {
+        font-size: 10px !important;
+    }
+
+    .status-label {
+        font-size: 11px !important;
+    }
+
+    .status-timeframe {
+        font-size: 11px !important;
+    }
+
+    .status-countdown {
+        font-size: 10px !important;
+    }
+
+    /* 卡片标题字体优化 */
+    .ant-card-head-title {
+        font-size: 13px !important;
+    }
+
+    /* 时间标签和采样标签优化 */
+    .time-label-enhanced,
+    .sample-label-enhanced {
+        font-size: 11px !important;
+    }
+}
+
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    /* 增加触摸目标大小 */
+    .ant-btn {
+        min-height: 48px !important;
+        min-width: 48px !important;
+    }
+
+    /* 优化触摸反馈 */
+    .ant-btn:active {
+        transform: scale(0.95) !important;
+        transition: transform 0.1s ease !important;
+    }
+
+    /* 移除悬停效果，保留点击效果 */
+    .ant-btn:hover {
+        transform: none !important;
+    }
+}
+
+/* ===== 1200px布局修复完成 ===== */

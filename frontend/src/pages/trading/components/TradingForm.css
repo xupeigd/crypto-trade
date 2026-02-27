@@ -1,0 +1,401 @@
+.trading-form {
+    padding: 8px 0;
+}
+
+/* 交易表单卡片padding设置 */
+.trading-form-card .ant-card-body {
+    padding: 12px;
+}
+
+.trading-form .ant-form-item-label > label {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.trading-form .ant-input,
+.trading-form .ant-select-selector {
+    background-color: #2a2a2a;
+    border-color: #424242;
+    color: #ffffff;
+}
+
+.trading-form .ant-input:hover,
+.trading-form .ant-select-selector:hover {
+    border-color: #1890ff;
+}
+
+.trading-form .ant-input:focus,
+.trading-form .ant-select-focused .ant-select-selector {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.trading-form .ant-select-dropdown {
+    background-color: #1f1f1f;
+    border-color: #424242;
+}
+
+.trading-form .ant-select-item {
+    color: #ffffff;
+}
+
+.trading-form .ant-select-item-option-active {
+    background-color: #1890ff;
+}
+
+.trading-form .ant-select-item-option-selected {
+    background-color: #1890ff;
+}
+
+/* API Key选择器样式 */
+.api-key-selector {
+    color: #ffffff;
+}
+
+.api-key-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: auto;
+    min-height: 24px;
+}
+
+/* API Key标签样式优化 */
+.api-key-option span:last-child {
+    flex-shrink: 0;
+    margin-left: 8px;
+    max-height: 16px;
+    line-height: 1.2;
+}
+
+/* Select选项容器高度调整 */
+.trading-form .ant-select-item-option {
+    height: auto !important;
+    min-height: 32px !important;
+    padding: 8px 12px !important;
+}
+
+/* 杠杆显示样式 */
+.lever-display {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: #2a2a2a;
+    border: 1px solid #424242;
+    border-radius: 6px;
+}
+
+/* 预估信息样式 */
+.estimated-info {
+    padding: 12px 16px;
+    background-color: #2a2a2a;
+    border: 1px solid #424242;
+    border-radius: 6px;
+}
+
+.estimated-info .ant-row {
+    margin: 0;
+}
+
+/* 按钮样式 */
+.trading-button {
+    height: 48px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.buy-button {
+    background: linear-gradient(135deg, #52c41a, #73d13d);
+    border: none;
+    color: white;
+}
+
+.buy-button:hover {
+    background: linear-gradient(135deg, #73d13d, #95de64);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}
+
+.buy-button:disabled {
+    background: #424242;
+    transform: none;
+    box-shadow: none;
+}
+
+.sell-button {
+    background: linear-gradient(135deg, #ff4d4f, #ff7875);
+    border: none;
+    color: white;
+}
+
+.sell-button:hover {
+    background: linear-gradient(135deg, #ff7875, #ff9c9e);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
+}
+
+.sell-button:disabled {
+    background: #424242;
+    transform: none;
+    box-shadow: none;
+}
+
+/* 实盘交易警告样式 */
+.trading-form .ant-alert-warning {
+    background-color: #2a1f1f;
+    border-color: #ff4d4f;
+}
+
+.trading-form .ant-alert-warning .ant-alert-icon {
+    color: #ff4d4f;
+}
+
+.trading-form .ant-alert-warning .ant-alert-message {
+    color: #ffffff;
+}
+
+.trading-form .ant-alert-warning .ant-alert-description {
+    color: #cccccc;
+}
+
+/* 表单项间距调整 */
+.trading-form .ant-form-item {
+    margin-bottom: 16px;
+}
+
+/* Select组件下拉样式覆盖 */
+.trading-form .ant-select-dropdown {
+    background-color: #1f1f1f !important;
+    border-color: #424242 !important;
+    box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05);
+}
+
+.trading-form .ant-select-item {
+    color: #ffffff !important;
+}
+
+.trading-form .ant-select-item-option-active {
+    background-color: #1890ff !important;
+    color: #ffffff !important;
+}
+
+.trading-form .ant-select-item-option-selected {
+    background-color: #1890ff !important;
+    color: #ffffff !important;
+}
+
+.trading-form .ant-select-item-option:hover {
+    background-color: #262626 !important;
+}
+
+/* 加载状态样式 */
+.trading-button.ant-btn-loading {
+    position: relative;
+}
+
+.trading-button.ant-btn-loading::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+}
+
+/* 修复Select搜索输入框只读问题 */
+.trading-form .ant-select-selection-search-input {
+    opacity: 1 !important;
+    readonly: none !important;
+    unselectable: auto !important;
+    pointer-events: auto !important;
+    user-select: text !important;
+}
+
+.trading-form .ant-select-selection-search-input[readonly],
+.trading-form .ant-select-selection-search-input[unselectable] {
+    readonly: false !important;
+    unselectable: auto !important;
+}
+
+/* 确保Select下拉框可正常交互 */
+.trading-form .ant-select-selector {
+    pointer-events: auto !important;
+    user-select: auto !important;
+}
+
+.trading-form .ant-select-selection-search {
+    pointer-events: auto !important;
+}
+
+.trading-form .ant-select-show-search .ant-select-selection-search-input {
+    opacity: 1 !important;
+}
+
+/* 止盈止损设置样式 */
+.profit-loss-settings {
+    background-color: #2a2a2a;
+    border: 1px solid #424242;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.profit-loss-item {
+    margin-bottom: 0;
+}
+
+.profit-loss-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.profit-loss-header .ant-checkbox-wrapper {
+    color: #ffffff;
+}
+
+.profit-loss-header .ant-checkbox-wrapper:hover {
+    color: #1890ff;
+}
+
+.profit-loss-controls {
+    background-color: #1f1f1f;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.profit-loss-controls .ant-checkbox-wrapper {
+    color: #ffffff;
+    font-size: 12px;
+}
+
+.profit-loss-controls .ant-input-number {
+    background-color: #333333;
+    border-color: #424242;
+    color: #ffffff;
+}
+
+.profit-loss-controls .ant-input-number:hover {
+    border-color: #1890ff;
+}
+
+.profit-loss-controls .ant-input-number:focus,
+.profit-loss-controls .ant-input-number-focused {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.profit-loss-controls .ant-input-number-input {
+    background-color: transparent;
+    color: #ffffff;
+}
+
+/* 分割线样式优化 */
+.profit-loss-settings > div[style*="backgroundColor: #f0f0f0"] {
+    background-color: #3a3a3a !important;
+    margin: 16px 0 !important;
+}
+
+/* 确认对话框按钮样式 */
+.buy-confirm-button {
+    background-color: #52c41a !important;
+    border-color: #52c41a !important;
+    color: #ffffff !important;
+}
+
+.buy-confirm-button:hover {
+    background-color: #73d13d !important;
+    border-color: #73d13d !important;
+}
+
+.sell-confirm-button {
+    background-color: #ff4d4f !important;
+    border-color: #ff4d4f !important;
+    color: #ffffff !important;
+}
+
+.sell-confirm-button:hover {
+    background-color: #ff7875 !important;
+    border-color: #ff7875 !important;
+}
+
+/* 确保确认对话框按钮样式优先级 - 使用最强选择器 */
+.ant-modal-confirm-btns button.ant-btn-primary.buy-confirm-button,
+.ant-modal-confirm-btns button.buy-confirm-button,
+button.ant-btn-primary.buy-confirm-button,
+button.buy-confirm-button {
+    background: #52c41a !important;
+    border-color: #52c41a !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.ant-modal-confirm-btns button.ant-btn-primary.sell-confirm-button,
+.ant-modal-confirm-btns button.sell-confirm-button,
+button.ant-btn-primary.sell-confirm-button,
+button.sell-confirm-button {
+    background: #ff4d4f !important;
+    border-color: #ff4d4f !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+/* hover状态 */
+.ant-modal-confirm-btns button.ant-btn-primary.buy-confirm-button:hover,
+.ant-modal-confirm-btns button.buy-confirm-button:hover,
+button.ant-btn-primary.buy-confirm-button:hover,
+button.buy-confirm-button:hover {
+    background: #73d13d !important;
+    border-color: #73d13d !important;
+}
+
+.ant-modal-confirm-btns button.ant-btn-primary.sell-confirm-button:hover,
+.ant-modal-confirm-btns button.sell-confirm-button:hover,
+button.ant-btn-primary.sell-confirm-button:hover,
+button.sell-confirm-button:hover {
+    background: #ff7875 !important;
+    border-color: #ff7875 !important;
+}
+
+/* 强制覆盖所有可能的Ant Design按钮样式 */
+.ant-modal-confirm-btns .ant-btn-primary {
+    background-image: none !important;
+}
+
+.ant-modal-confirm-btns .ant-btn-primary:hover {
+    background-image: none !important;
+}
+
+/* 价格更新闪烁动画 */
+@keyframes priceFlashUp {
+    0%, 100% {
+        border-color: #424242;
+    }
+    50% {
+        border-color: #52c41a;
+        box-shadow: 0 0 8px rgba(82, 196, 26, 0.5);
+    }
+}
+
+@keyframes priceFlashDown {
+    0%, 100% {
+        border-color: #424242;
+    }
+    50% {
+        border-color: #ff4d4f;
+        box-shadow: 0 0 8px rgba(255, 77, 79, 0.5);
+    }
+}
+
+.price-flash-up {
+    animation: priceFlashUp 300ms ease-in-out;
+}
+
+.price-flash-down {
+    animation: priceFlashDown 300ms ease-in-out;
+}

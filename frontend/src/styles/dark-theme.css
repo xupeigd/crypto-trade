@@ -1,0 +1,95 @@
+/* Dark theme menu overrides */
+.dark-menu {
+    background: #1f1f1f !important;
+    border-right: none !important;
+}
+
+.dark-menu .ant-menu {
+    background: #1f1f1f !important;
+    border-right: none !important;
+}
+
+.dark-menu .ant-menu-item {
+    margin: 4px 8px !important;
+    width: calc(100% - 16px) !important;
+    border-radius: 6px !important;
+    transition: all 0.3s ease !important;
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+}
+
+.dark-menu .ant-menu-item:hover {
+    background: #262626 !important;
+    color: #ffffff !important;
+}
+
+.dark-menu .ant-menu-item-selected {
+    background: #111b26 !important;
+    color: #1677ff !important;
+}
+
+.dark-menu .ant-menu-item-selected::after {
+    display: none !important;
+}
+
+.dark-menu .ant-menu-item-icon {
+    color: rgba(255, 255, 255, 0.65) !important;
+    transition: all 0.3s ease !important;
+}
+
+.dark-menu .ant-menu-item:hover .ant-menu-item-icon {
+    color: #ffffff !important;
+}
+
+.dark-menu .ant-menu-item-selected .ant-menu-item-icon {
+    color: #1677ff !important;
+}
+
+/* Menu item text styling */
+.dark-menu .ant-menu-item span {
+    font-weight: 500 !important;
+}
+
+.dark-menu .ant-menu-item-selected span {
+    font-weight: 600 !important;
+}
+
+/* Subtle glow effect for selected items */
+.dark-menu .ant-menu-item-selected {
+    box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.2) !important;
+}
+
+/* Smooth transitions for all menu interactions */
+.dark-menu .ant-menu-item,
+.dark-menu .ant-menu-item-icon {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Override Ant Design default blue colors */
+.ant-menu-dark.ant-menu-item-selected,
+.ant-menu-dark .ant-menu-item-selected {
+    background-color: #111b26 !important;
+    color: #1677ff !important;
+}
+
+.ant-menu-dark.ant-menu-item:hover,
+.ant-menu-dark .ant-menu-item:hover {
+    background-color: #262626 !important;
+    color: #ffffff !important;
+}
+
+/* 模拟标签透明效果 - 柔和视角 */
+.ant-tag-green {
+    background-color: rgba(82, 196, 26, 0.15) !important;
+    border-color: rgba(82, 196, 26, 0.3) !important;
+    color: #52c41a !important;
+    backdrop-filter: blur(4px);
+    opacity: 0.9;
+    transition: all 0.3s ease;
+}
+
+.ant-tag-green:hover {
+    background-color: rgba(82, 196, 26, 0.25) !important;
+    border-color: rgba(82, 196, 26, 0.4) !important;
+    opacity: 1;
+}

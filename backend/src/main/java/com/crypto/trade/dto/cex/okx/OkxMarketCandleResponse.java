@@ -1,0 +1,18 @@
+package com.crypto.trade.dto.cex.okx;
+
+import lombok.Data;
+
+import java.util.List;
+
+/**
+ * OkxMarketCandleResponse
+ * 响应对象
+ *
+ * @author page
+ * @date 2026-02-12 11:25
+ */
+@Data
+public class OkxMarketCandleResponse
+        extends OkxApiResponse<List<String>> {
+
+}

@@ -1,0 +1,240 @@
+spring:
+  application:
+    name: crypto-trade-backend
+
+  # Allow circular references for development
+  main:
+    allow-circular-references: true
+
+  # MySQL Configuration
+  datasource:
+    url: jdbc:mysql://${CRYPTO_TRADE_URL}/${CRYPTO_TRADE_DB}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: ${CRYPTO_TRADE_USERNAME}
+    password: ${CRYPTO_TRADE_PASSWD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # MySQL specific configurations
+      auto-commit: false  # 改为false，让JPA管理事务
+      connection-timeout: 30000
+      maximum-pool-size: 50     # 增大连接池,避免连接池耗尽(原20)
+      minimum-idle: 5           # 增加最小空闲连接(原5)
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      # Connection testing for MySQL
+      connection-test-query: SELECT 1
+      validation-timeout: 3000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        # Lower logging level to see SQL statements
+        highlight_sql: true
+        # MySQL specific configuration
+        jdbc:
+          batch_size: 20
+          time_zone: Asia/Shanghai
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        # Enable transaction management
+        transaction:
+          jta:
+            platform: org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform
+        allow_refresh_detached_entity: true
+    open-in-view: false
+
+
+      # Spring AI Configuration
+      #  ai:
+      #    ollama:
+      #      base-url: http://localhost:11434
+      #      chat:
+      #        client:
+    #        connect-timeout: 60s    # 连接超时60秒
+    #        read-timeout: 300s      # 读取超时5分钟（AI响应可能较慢）
+    # 不配置默认模型，由DynamicModelFactory动态管理
+    # options:
+    #   model: # 不设置，使用动态模型切换
+    #   temperature: 0.7
+    #   max-tokens: 4000
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # Cache Configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=5m
+
+  # Task Configuration
+  task:
+    thread-pool:
+      core-size: 10
+      max-size: 20
+      queue-capacity: 100
+      keep-alive-seconds: 60
+
+# Server Configuration
+server:
+  port: 8080
+  # context-path已移除,统一使用根路径访问
+
+# Logging Configuration
+logging:
+  level:
+    com.crypto.trade: INFO
+    org.springframework.web: WARN
+    org.springframework.orm.jpa: WARN
+    org.springframework.jdbc: WARN
+    org.springframework.orm.jpa.JpaTransactionManager: WARN
+    org.springframework.jdbc.datasource.DataSourceUtils: WARN
+    org.springframework.orm.jpa.SharedEntityManagerCreator: WARN
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %-5level - %logger{36} - %msg%n"
+
+# CEX API Configuration
+cex:
+  api:
+    timeout: 30000
+    retry:
+      max-attempts: 3
+      backoff-delay: 1000
+    # 限流配置
+    rate-limit:
+      # 每个API Key的QPS限制（默认10）
+      per-api-key-qps: ${CEX_API_PER_KEY_QPS:10}
+      # 全局QPS限制（默认20）
+      global-qps: ${CEX_API_GLOBAL_QPS:15}
+      # 限流等待超时时间（毫秒，修复假死bug：从800ms降低到50ms）
+      wait-timeout-ms: ${CEX_API_WAIT_TIMEOUT_MS:50}
+
+# Top30 API Configuration
+top30:
+  # 基础配置
+  cache-ttl-minutes: 5
+  default-vendor: "OKX"
+  default-inst-type: "SWAP"
+  default-limit: 30
+
+  # 异步更新配置
+  async-update-enabled: true
+  update-interval-seconds: 60
+  precompute-hours: 24
+
+  # 缓存配置
+  cache-enabled: true
+  fallback-enabled: true
+
+# AI Trading Risk Control Configuration
+ai-trading:
+  #  # 动态模型选择配置
+  #  model-selection:
+  #    enabled: true
+  #    default-model: "deepseek-r1:14b"
+  #    supported-models:
+  #      - name: "deepseek-r1:14b"
+  #        display-name: "DeepSeek R1 14B"
+  #        description: "默认交易决策模型"
+  #        provider: "deepseek"
+  #        parameter-size: 14
+  #        max-tokens: 128000
+  #        temperature: 0.7
+  #      - name: "deepseek-r1:32b"
+  #        display-name: "DeepSeek R1 32B"
+  #        description: "高性能推理模型"
+  #        provider: "deepseek"
+  #        parameter-size: 32
+  #        max-tokens: 128000
+  #        temperature: 0.7
+  #      - name: "qwen3:4b"
+  #        display-name: "Qwen3 4B"
+  #        description: "轻量级快速响应模型"
+  #        provider: "alibaba"
+  #        parameter-size: 4
+  #        max-tokens: 8192
+  #        temperature: 0.5
+  #      - name: "qwen3-vl:8b"
+  #        display-name: "Qwen3 VL 8B"
+  #        description: "视觉语言多模态模型"
+  #        provider: "alibaba"
+  #        parameter-size: 8
+  #        max-tokens: 8192
+  #        temperature: 0.7
+  #      - name: "gemma3:27b"
+  #        display-name: "Gemma3 27B"
+  #        description: "Google高性能大模型"
+  #        provider: "google"
+  #        parameter-size: 27
+  #        max-tokens: 8192
+  #        temperature: 0.7
+
+  risk-control:
+    # 风控模式: AUTO(自动) - 手动模式将通过接口动态修改
+    mode: ${AI_TRADING_RISK_MODE:AUTO}
+    # 风控模式描述
+    mode-description: "风险控制模式，AUTO为自动模式，MANUAL为手动模式"
+    # 交易风格: C1保守型(3%/5%), C2谨慎型(5%/10%), C3稳健型(8%/15%), C4积极型(12%/20%), C5激进型(18%/30%)
+    trading-style: ${AI_TRADING_TRADING_STYLE:C3_MODERATE}
+    # 交易风格描述
+    trading-style-description: "交易风格：C1保守型(3%/5%), C2谨慎型(5%/10%), C3稳健型(8%/15%), C4积极型(12%/20%), C5激进型(18%/30%)"
+    # 自动作业开关: true启用, false禁用
+    automatic-trade-enabled: ${AI_TRADING_AUTOMATIC_TRADE_ENABLED:true}
+    # 思考模式开关: true启用, false禁用
+    thinking-mode-enabled: ${AI_TRADING_THINKING_MODE_ENABLED:true}
+
+# Encryption Configuration
+encryption:
+  secret-key: "0123456789abcdef0123456789abcdef" # 32 characters for AES-256
+  salt: "1234567890abcdef" # 16 characters for AES
+
+# AI Trading Execution Configuration
+ai:
+  trading:
+    # 自动交易执行开关（默认开启）
+    auto-execution: ${AI_TRADING_AUTO_EXECUTION:true}
+
+    # 执行模式: dry-run(模拟) / live(实盘)
+    execution-mode: ${AI_TRADING_EXECUTION_MODE:live}
+
+    # 最低置信度要求（0-100）
+    min-confidence: ${AI_TRADING_MIN_CONFIDENCE:60}
+
+    # 单次最大交易金额比例（0-1之间，例如0.1表示10%）
+    max-amount-ratio: ${AI_TRADING_MAX_AMOUNT_RATIO:0.25}
+
+    # 最小交易金额（USDT）
+    min-amount: ${AI_TRADING_MIN_AMOUNT:10.0}
+
+    # 最大交易金额（USDT）
+    max-amount: ${AI_TRADING_MAX_AMOUNT:50.0}
+
+    # 账户最大可用金额限制（USDT）
+    # 用于限制AI交易时的账户总权益，避免AI误以为有大量资金可用
+    max-account-balance: ${AI_TRADING_MAX_ACCOUNT_BALANCE:200.0}
+
+    # 默认杠杆倍数
+    default-leverage: ${AI_TRADING_DEFAULT_LEVERAGE:3}
+
+    # 是否启用风控检查
+    enable-risk-control: ${AI_TRADING_ENABLE_RISK_CONTROL:true}
+
+
+# 技术指标配置
+technical:
+  indicator:
+    # 技术指标小数精度，默认8位
+    decimal-scale: ${TECHNICAL_INDICATOR_DECIMAL_SCALE:8} 

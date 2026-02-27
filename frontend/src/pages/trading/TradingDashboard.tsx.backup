@@ -1,0 +1,230 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Typography, Card, Row, Col, Button, Divider, Spin, Alert, Space, Switch } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { SyncOutlined } from '@ant-design/icons';
+import BalanceCards, { BalanceCardsRef } from '../../components/trading/BalanceCards';
+import PositionService, { PositionSummary } from '../../services/positionService';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+
+const { Title } = Typography;
+
+const TradingDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const [positionSummary, setPositionSummary] = useState<PositionSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [selectedCex, setSelectedCex] = useState<string>('ALL'); // 添加vendor状态管理
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const balanceCardsRef = useRef<BalanceCardsRef>(null);
+
+  // 获取持仓数据
+  const fetchPositionData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const summary = await PositionService.getPositionSummary(selectedCex);
+      setPositionSummary(summary);
+    } catch (error) {
+      console.error('获取持仓数据失败:', error);
+      setError('获取持仓数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 简化状态管理，不使用useAutoRefresh避免复杂性问题
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(() => {
+    const globalStored = localStorage.getItem('global_auto_refresh_trading_dashboard');
+    return globalStored !== null ? JSON.parse(globalStored) : false;
+  });
+
+  // 切换自动刷新状态
+  const toggleAutoRefresh = useCallback((enabled: boolean) => {
+    setAutoRefreshEnabled(enabled);
+    localStorage.setItem('global_auto_refresh_trading_dashboard', JSON.stringify(enabled));
+  }, []);
+
+  // 自动刷新定时器
+  useEffect(() => {
+    if (autoRefreshEnabled) {
+      const interval = setInterval(() => {
+        console.log('自动刷新触发，更新持仓数据');
+        fetchPositionData();
+        balanceCardsRef.current?.refreshBalance();
+      }, 10000);
+
+      return () => clearInterval(interval);
+    }
+  }, [autoRefreshEnabled]);
+
+  // 手动刷新函数 - 统一管理持仓和余额数据刷新
+  const handleManualRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+
+    console.log('执行手动刷新，更新持仓和余额数据');
+    setIsRefreshing(true);
+
+    try {
+      // 并行请求持仓和余额数据
+      await Promise.all([
+        fetchPositionData(),
+        balanceCardsRef.current?.refreshBalance()
+      ]);
+      console.log('手动刷新完成，持仓和余额数据已更新');
+    } catch (error) {
+      console.error('手动刷新失败:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing]);
+
+  // 初始化数据
+  useEffect(() => {
+    fetchPositionData();
+  }, []);
+
+  // 移除 selectedCex 的 useEffect，避免重复调用
+  // CEX 切换时的刷新通过 BalanceCards 组件内部处理
+
+  return (
+    <div style={{ padding: '24px' }}>
+      {/* 页面标题和控制开关 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <Title level={2}>交易仪表板</Title>
+        <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
+          <Space>
+            <SyncOutlined style={{ color: autoRefreshEnabled ? '#52c41a' : '#8c8c8c' }} />
+            <span>自动刷新</span>
+            <Switch
+              checked={autoRefreshEnabled}
+              onChange={() => toggleAutoRefresh(!autoRefreshEnabled)}
+              size="small"
+            />
+          </Space>
+          <span
+            className={autoRefreshEnabled || isRefreshing ? "cursor-not-allowed" : "cursor-pointer text-blue-600"}
+            onClick={() => {
+              console.log('TradingDashboard 手动刷新按钮被点击，autoRefreshEnabled:', autoRefreshEnabled, 'isRefreshing:', isRefreshing);
+              if (!autoRefreshEnabled && !isRefreshing) {
+                handleManualRefresh();
+              }
+            }}
+            style={{
+              color: autoRefreshEnabled || isRefreshing ? '#d9d9d9' : '#1890ff',
+              pointerEvents: autoRefreshEnabled || isRefreshing ? 'none' : 'auto'
+            }}
+          >
+            {isRefreshing ? '刷新中...' : '手动刷新'}
+          </span>
+        </Space>
+      </div>
+
+      {/* 账户余额统计卡片 */}
+      <BalanceCards
+        ref={balanceCardsRef}
+        selectedCex={selectedCex}
+        onCexChange={setSelectedCex}
+        style={{ marginBottom: 32 }}
+      />
+
+      <Divider />
+
+      {/* 持仓统计卡片 */}
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={8}>
+          <Card
+            title="总持仓"
+            bordered={false}
+          >
+            <Spin spinning={loading || isRefreshing}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff' }}>
+                {positionSummary?.totalPositions || 0}
+              </div>
+              <div style={{ color: '#999' }}>活跃持仓</div>
+            </Spin>
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card title="未结盈亏" bordered={false}>
+            <Spin spinning={loading || isRefreshing}>
+              <div style={{
+                fontSize: '24px',
+                fontWeight: 'bold',
+                color: (positionSummary?.totalUpl || 0) >= 0 ? '#52c41a' : '#ff4d4f'
+              }}>
+                {(positionSummary?.totalUpl || 0) >= 0 ? '+' : ''}
+                {PositionService.formatUsdAmount(positionSummary?.totalUpl || 0)}
+              </div>
+              <div style={{ color: '#999' }}>未实现盈亏</div>
+            </Spin>
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card title="保证金使用" bordered={false}>
+            <Spin spinning={loading || isRefreshing}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fa8c16' }}>
+                {PositionService.formatPercentage(positionSummary?.marginUsageRate || 0)}
+              </div>
+              <div style={{ color: '#999' }}>使用率</div>
+            </Spin>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 错误提示 */}
+      {error && (
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          closable
+          action={
+            <span className="cursor-pointer text-blue-600" onClick={fetchPositionData}>
+              重试
+            </span>
+          }
+          style={{ marginBottom: 24 }}
+        />
+      )}
+
+      <Row gutter={16}>
+        <Col span={12}>
+          <Card title="快捷操作" bordered={false}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Button
+                type="primary"
+                block
+                onClick={() => navigate('/okx-positions')}
+              >
+                查看持仓详情
+              </Button>
+              <Button
+                block
+                onClick={() => navigate('/system/cex-keys')}
+              >
+                管理API密钥
+              </Button>
+              <Button
+                block
+                onClick={() => navigate('/system')}
+              >
+                系统管理
+              </Button>
+            </div>
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title="最近活动" bordered={false}>
+            <div style={{ color: '#666' }}>
+              <p>• BTC/USDT 多头仓位开仓</p>
+              <p>• ETH/USDT 空头仓位平仓</p>
+              <p>• SOL/USDT 多头仓位加仓</p>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
+export default TradingDashboard;

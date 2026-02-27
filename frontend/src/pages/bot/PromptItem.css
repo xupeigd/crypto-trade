@@ -1,0 +1,127 @@
+/**
+ * PromptItem 组件样式
+ * 包含 Prompt 历史记录项的自定义样式
+ */
+
+/* 为处理中状态的 Badge 添加呼吸灯效果 */
+.prompt-item-badge-processing {
+    animation: prompt-badge-breathing 2s ease-in-out infinite;
+}
+
+@keyframes prompt-badge-breathing {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Dark theme modal styles */
+.dark-theme-modal .ant-modal-content {
+    background: #1f1f1f !important;
+    border: 1px solid #434343 !important;
+    box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark-theme-modal .ant-modal-header {
+    background: #1f1f1f !important;
+    border-bottom: 1px solid #434343 !important;
+}
+
+.dark-theme-modal .ant-modal-title {
+    color: #ffffff !important;
+}
+
+.dark-theme-modal .ant-modal-body {
+    background: #1f1f1f !important;
+    color: #a0a0a0 !important;
+}
+
+.dark-theme-modal .ant-modal-confirm-body .ant-modal-confirm-title {
+    color: #ffffff !important;
+}
+
+.dark-theme-modal .ant-modal-confirm-body .ant-modal-confirm-content {
+    color: #a0a0a0 !important;
+}
+
+.dark-theme-modal .ant-modal-confirm-btns .ant-btn-default {
+    background: #2a2a2a !important;
+    border-color: #434343 !important;
+    color: #a0a0a0 !important;
+}
+
+.dark-theme-modal .ant-modal-confirm-btns .ant-btn-default:hover {
+    background: #404040 !important;
+    border-color: #434343 !important;
+    color: #ffffff !important;
+}
+
+/* Dark theme popover styles */
+.dark-theme-popover .ant-popover-inner {
+    background: #1f1f1f !important;
+    border: 1px solid #434343 !important;
+    box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.45) !important;
+}
+
+.dark-theme-popover .ant-popover-title {
+    background: #1f1f1f !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #434343 !important;
+}
+
+.dark-theme-popover .ant-popover-inner-content {
+    background: #1f1f1f !important;
+    color: #a0a0a0 !important;
+}
+
+.dark-theme-popover .ant-popover-arrow {
+    border-color: #434343 !important;
+}
+
+.dark-theme-popover .ant-popover-arrow::after {
+    background: #1f1f1f !important;
+    border: 1px solid #434343 !important;
+}
+
+/* Dark theme action table styles */
+.dark-theme-action-table .ant-table {
+    background: #1f1f1f !important;
+    color: #a0a0a0 !important;
+}
+
+.dark-theme-action-table .ant-table-thead > tr > th {
+    background: #2a2a2a !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #434343 !important;
+    padding: 8px !important;
+    font-size: 12px !important;
+}
+
+.dark-theme-action-table .ant-table-tbody > tr > td {
+    background: #1f1f1f !important;
+    color: #a0a0a0 !important;
+    border-bottom: 1px solid #2a2a2a !important;
+    padding: 8px !important;
+    font-size: 12px !important;
+}
+
+.dark-theme-action-table .ant-table-tbody > tr:hover > td {
+    background: #2a2a2a !important;
+}
+
+/* Dark theme tabs styles */
+.dark-theme-tabs .ant-tabs-nav {
+    margin: 0 0 0 0 !important;
+}
+
+.dark-theme-tabs .ant-tabs-tab {
+    padding: 8px 16px !important;
+}

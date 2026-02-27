@@ -1,0 +1,126 @@
+/* 取消Table圆角效果,保持父元素Card的圆角 */
+
+/* 覆盖Table最外层容器的圆角 */
+.flat-radius-table .ant-table-wrapper {
+    border-radius: 0 !important;
+}
+
+/* 覆盖Table容器的圆角 */
+.flat-radius-table .ant-table {
+    border-radius: 0 !important;
+}
+
+/* 覆盖Table内容容器的圆角 */
+.flat-radius-table .ant-table-container {
+    border-radius: 0 !important;
+}
+
+/* 取消表头圆角 */
+.flat-radius-table .ant-table-thead > tr:first-child > th:first-child,
+.flat-radius-table .ant-table-thead > tr:first-child > th:last-child {
+    border-radius: 0 !important;
+}
+
+/* 取消表体第一行单元格的圆角 */
+.flat-radius-table .ant-table-tbody > tr:first-child > td:first-child,
+.flat-radius-table .ant-table-tbody > tr:first-child > td:last-child {
+    border-radius: 0 !important;
+}
+
+/* 取消表体最后一行单元格的圆角 */
+.flat-radius-table .ant-table-tbody > tr:last-child > td:first-child,
+.flat-radius-table .ant-table-tbody > tr:last-child > td:last-child {
+    border-radius: 0 !important;
+}
+
+/* 表头内容居中 */
+.flat-radius-table .ant-table-thead > tr > th {
+    text-align: center !important;
+}
+
+/* 表体内容保持默认左对齐 */
+.flat-radius-table .ant-table-tbody > tr > td {
+    text-align: left;
+}
+
+/* 表格背景色 */
+.flat-radius-table .ant-table-wrapper {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+.flat-radius-table .ant-table {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+.flat-radius-table .ant-table-container {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+.flat-radius-table .ant-table-body {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+.flat-radius-table .ant-table-thead > tr > th {
+    background-color: rgb(38, 38, 38) !important;
+}
+
+.flat-radius-table .ant-table-tbody > tr > td {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+.flat-radius-table .ant-table-tbody > tr:hover > td {
+    background-color: rgb(42, 42, 42) !important;
+}
+
+.bot-order-overlay-action .ant-btn,
+.bot-order-overlay-action .ant-btn:hover,
+.bot-order-overlay-action .ant-btn:active,
+.bot-order-overlay-action .ant-btn:focus {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Tab活跃状态背景色 */
+:global(.custom-dark-tabs .ant-tabs-tab) {
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    transition: background-color 0.3s ease !important;
+    margin: 0 4px !important;
+}
+
+:global(.custom-dark-tabs .ant-tabs-tab-active) {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+:global(.custom-dark-tabs .ant-tabs-tab-active .ant-tabs-tab-btn) {
+    background-color: transparent !important;
+}
+
+:global(.custom-dark-tabs .ant-tabs-tab-active .ant-tabs-tab-btn span) {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+:global(.custom-dark-tabs .ant-tabs-tab:hover) {
+    background-color: rgb(42, 42, 42) !important;
+}
+
+/* 普通样式作为补充 */
+.custom-dark-tabs .ant-tabs-tab-active {
+    background-color: rgb(31, 31, 31) !important;
+}
+
+/* 额外的覆盖,确保Tab容器的背景色 */
+:global(.custom-dark-tabs .ant-tabs-nav-list) {
+    background-color: transparent !important;
+}
+
+:global(.custom-dark-tabs .ant-tabs-nav) {
+    background-color: transparent !important;
+}
+
+/* 隐藏ink-bar,让背景色更明显 */
+:global(.custom-dark-tabs .ant-tabs-ink-bar) {
+    background-color: #1890ff !important;
+}

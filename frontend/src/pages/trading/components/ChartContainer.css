@@ -1,0 +1,866 @@
+/* ChartContainer 组件样式 */
+
+/* 定时器状态指示器脉冲动画 */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 控制面板样式 */
+.chart-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 6px;
+    align-items: flex-start;
+    width: 100%;
+    padding: 0;
+    overflow: hidden; /* 防止子元素溢出 */
+    box-sizing: border-box;
+}
+
+/* 三栏布局容器：全屏按钮(10%) + 时间帧控制(45%) + 技术指标(45%) */
+.chart-controls .timeframe-sample-container {
+    display: grid !important;
+    grid-template-columns: 5% 45% 45% !important; /* 调整为98%，给gap留出2%空间 */
+    gap: 1%;
+    align-items: stretch;
+    width: 100%;
+    margin-bottom: 8px;
+    box-sizing: border-box;
+}
+
+/* 左侧：全屏按钮区域 - 10% */
+.fullscreen-section {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 110px;
+    padding-top: 8px;
+    box-sizing: border-box;
+}
+
+.fullscreen-section .fullscreen-btn {
+    width: 40px;
+    height: 32px;
+    background: #1a1a1a;
+    border-color: #555555;
+    color: #ffffff;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+}
+
+.fullscreen-section .fullscreen-btn:hover {
+    background: #262626;
+    border-color: #1890ff;
+    color: #1890ff;
+    transform: translateY(-1px);
+}
+
+/* 中间：时间帧和采样控制区域 - 45% */
+.timeframe-sample-center {
+    display: flex;
+    flex-direction: column;
+    background: #1f1f1f;
+    border: 1px solid #434343;
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-height: 110px;
+    width: 100%;
+}
+
+/* 右侧：技术指标控制区域 - 45% （仿绿色区域样式） */
+.technical-indicators-right {
+    display: flex;
+    flex-direction: column;
+    background: #1f1f1f;
+    border: 1px solid #434343;
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-height: 110px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 技术指标标题 - 仿时间帧标签 */
+.indicators-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+}
+
+.indicators-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 6px;
+    white-space: nowrap;
+}
+
+/* 技术指标按钮行 - 仿时间帧按钮 */
+.indicators-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+}
+
+.indicators-row .ant-btn {
+    font-size: 11px;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid #555555;
+    background: #1a1a1a !important;
+    color: #ffffff;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.indicators-row .ant-btn:disabled {
+    background: transparent !important;
+    color: #8c8c8c !important;
+}
+
+.indicators-row .ant-btn:hover {
+    border-color: #1890ff;
+    background: #262626;
+    color: #1890ff;
+    transform: translateY(-1px);
+}
+
+.indicators-row .ant-btn.ant-btn-text {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #1890ff;
+    font-weight: 600;
+}
+
+/* 技术指标功能按钮行 - 仿采样控制 */
+.indicators-function-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+}
+
+.indicators-function-row .ant-btn {
+    font-size: 11px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid #555555;
+    background: #1a1a1a !important;
+    color: #ffffff;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    margin-right: 2px;
+    margin-bottom: 2px;
+}
+
+.indicators-function-row .ant-btn:hover {
+    border-color: #1890ff;
+    background: #262626;
+    color: #1890ff;
+    transform: translateY(-1px);
+}
+
+.indicators-function-row .ant-btn .ant-btn-icon {
+    font-size: 10px;
+    color: #8c8c8c;
+}
+
+.indicators-function-row .ant-btn:hover .ant-btn-icon {
+    color: #1890ff;
+}
+
+/* 第一行：时间帧控制 */
+.timeframe-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+}
+
+/* 第二行：采样控制 */
+.sample-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+}
+
+/* 第三行：排序控制（非弹窗） */
+.sort-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+}
+
+.sort-row .sort-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 6px;
+    white-space: nowrap;
+}
+
+/* 第三行：状态控制 */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 4px 0;
+    font-size: 10px;
+    font-family: 'Monaco, Consolas, monospace';
+}
+
+.status-row .status-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 6px;
+    white-space: nowrap;
+}
+
+.status-row .status-timeframe {
+    color: #1890ff;
+    font-weight: 600;
+}
+
+.status-row .status-next-time {
+    color: #52c41a;
+    font-size: 10px;
+}
+
+.status-row .status-countdown {
+    color: #faad14;
+    font-weight: 500;
+    min-width: 30px;
+}
+
+.status-row .status-indicator.active {
+    background-color: #52c41a;
+    animation: pulse 2s infinite;
+}
+
+.status-row .status-indicator.inactive {
+    background-color: #ff4d4f;
+}
+
+/* 分割线样式 */
+.control-divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #434343, transparent);
+    margin: 4px 0;
+    opacity: 0.6;
+}
+
+/* 时间帧和采样标签样式 */
+.timeframe-row .time-label,
+.sample-row .sample-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 6px;
+    white-space: nowrap;
+}
+
+/* 时间帧和采样行内按钮样式 */
+.timeframe-sample-center .ant-btn,
+.timeframe-row .ant-btn,
+.sample-row .ant-btn {
+    font-size: 11px;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid #555555;
+    background: #1a1a1a !important;
+    color: #ffffff;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+/* 确保disabled按钮也使用正确的背景色 */
+.timeframe-sample-center .ant-btn:disabled,
+.timeframe-row .ant-btn:disabled,
+.sample-row .ant-btn:disabled {
+    background: #1a1a1a !important;
+    color: #8c8c8c !important;
+}
+
+/* 采样按钮的最小宽度调整 */
+.sample-row .ant-btn {
+    min-width: 36px;
+}
+
+.timeframe-row .ant-btn:hover,
+.sample-row .ant-btn:hover {
+    border-color: #1890ff;
+    background: #262626;
+    color: #1890ff;
+    transform: translateY(-1px);
+}
+
+.timeframe-row .ant-btn.ant-btn-text,
+.sample-row .ant-btn.ant-btn-text {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #1890ff;
+    font-weight: 600;
+}
+
+.timeframe-row .ant-btn:active,
+.sample-row .ant-btn:active {
+    transform: translateY(0);
+}
+
+/* 活跃（已选中）按钮样式 */
+.timeframe-row .ant-btn[disabled],
+.sample-row .ant-btn[disabled] {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #1890ff !important;
+    cursor: default !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+/* 技术指标控制区域 */
+.indicator-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #1a1a1a;
+    border: 1px solid #434343;
+    border-radius: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+}
+
+.indicator-controls .indicator-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+.indicator-controls .ant-checkbox-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* 技术指标按钮样式优化 */
+.indicator-controls .ant-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 60px;
+    height: 28px;
+    background: #1f1f1f;
+    border: 1px solid #555555;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: normal;
+    transition: all 0.2s ease;
+    margin-right: 2px;
+    margin-bottom: 2px;
+}
+
+.indicator-controls .ant-btn:hover {
+    border-color: #1890ff;
+    background: #262626;
+    color: #1890ff;
+    transform: translateY(-1px);
+}
+
+.indicator-controls .ant-btn:active {
+    transform: translateY(0);
+}
+
+.indicator-controls .ant-btn .ant-btn-icon {
+    font-size: 10px;
+    color: #8c8c8c;
+}
+
+.indicator-controls .ant-btn:hover .ant-btn-icon {
+    color: #1890ff;
+}
+
+/* 技术指标展开按钮 */
+.indicator-controls .ant-btn.active {
+    border-color: #1890ff;
+    background: rgba(24, 144, 255, 0.15);
+    color: #1890ff;
+}
+
+.indicator-controls .ant-btn.active .ant-btn-icon {
+    color: #1890ff;
+}
+
+.indicator-controls .ant-checkbox-wrapper {
+    color: #fff;
+    font-size: 12px;
+}
+
+.indicator-controls .ant-checkbox-wrapper:hover {
+    color: #1890ff;
+}
+
+/* 指标项样式 */
+.indicator-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 12px;
+}
+
+.indicator-item .ant-checkbox-wrapper {
+    color: #fff;
+    font-size: 12px;
+    margin-right: 0;
+}
+
+.indicator-item .ant-input-number {
+    background-color: #2a2a2a;
+    border-color: #434343;
+}
+
+.indicator-item .ant-input-number:hover {
+    border-color: #1890ff;
+}
+
+.indicator-item .ant-input-number-focused {
+    border-color: #1890ff;
+    box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.indicator-item .ant-input-number-input {
+    background-color: #2a2a2a;
+    color: #fff;
+}
+
+/* 深色主题适配 */
+.chart-controls .time-label,
+.chart-controls .indicator-label {
+    color: #bfbfbf;
+}
+
+/* 响应式设计 - 大屏幕保持三栏布局 */
+@media (min-width: 1200px) {
+    .timeframe-sample-container {
+        grid-template-columns: 1fr 4.5fr 4.5fr; /* 10% : 45% : 45% */
+        align-items: stretch;
+    }
+
+    .fullscreen-section {
+        min-height: 110px;
+    }
+
+    .timeframe-sample-center {
+        min-height: 110px;
+    }
+
+    .technical-indicators-right {
+        min-width: 400px;
+    }
+}
+
+/* 中等屏幕保持三栏Grid布局 */
+@media (max-width: 1199px) and (min-width: 720px) {
+    .chart-controls .timeframe-sample-container {
+        display: grid !important;
+        grid-template-columns: 10% 44% 44% !important; /* 调整为98%，给gap留出2%空间 */
+        gap: 1%;
+        align-items: stretch;
+    }
+
+    .fullscreen-section {
+        display: flex;
+        min-height: 100px;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 8px;
+        box-sizing: border-box;
+    }
+
+    .timeframe-sample-center {
+        min-width: 200px;
+        min-height: 100px;
+    }
+
+    .technical-indicators-right {
+        min-width: 200px;
+        min-height: 100px;
+    }
+
+    .fullscreen-section .fullscreen-btn {
+        width: 36px;
+        height: 28px;
+    }
+}
+
+/* 小屏幕垂直布局 */
+@media (max-width: 719px) {
+    .timeframe-sample-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .fullscreen-section {
+        display: flex;
+        min-height: auto;
+        justify-content: flex-start;
+        margin-bottom: 8px;
+    }
+
+    .timeframe-sample-center {
+        min-width: 100%;
+        width: 100%;
+        min-height: 110px;
+    }
+
+    .technical-indicators-right {
+        min-width: 100%;
+        width: 100%;
+        min-height: 100px;
+    }
+}
+
+/* 中等屏幕优化 */
+@media (max-width: 1199px) and (min-width: 720px) {
+    /* 优化时间帧和采样按钮，节省空间 */
+    .timeframe-sample-center .ant-btn,
+    .timeframe-row .ant-btn,
+    .sample-row .ant-btn {
+        padding: 0 3px !important;
+        font-size: 9px !important;
+        margin-right: 1px !important;
+        margin-bottom: 1px !important;
+        min-width: 26px !important;
+        height: 18px !important;
+    }
+
+    /* 时间帧和采样标签优化 */
+    .timeframe-row .time-label,
+    .sample-row .sample-label {
+        font-size: 10px !important;
+        margin-right: 4px !important;
+    }
+
+    /* 状态显示优化 */
+    .status-row {
+        font-size: 8px !important;
+        gap: 2px !important;
+        padding: 2px 0 !important;
+    }
+
+    .status-row .status-label {
+        font-size: 9px !important;
+        margin-right: 3px !important;
+    }
+
+    /* 技术指标面板优化 */
+    .technical-indicators-right .embedded-indicators-panel .ant-card-body {
+        padding: 2px !important;
+        overflow: visible !important;
+    }
+
+    .indicator-buttons-section .ant-space {
+        flex-wrap: wrap !important;
+        gap: 1px !important;
+    }
+
+    .indicator-buttons-section .ant-btn {
+        margin: 1px !important;
+        font-size: 8px !important;
+        padding: 0 2px !important;
+        min-width: 22px !important;
+        height: 16px !important;
+        line-height: 14px !important;
+    }
+}
+
+/* 小屏幕垂直布局优化 */
+@media (max-width: 719px) {
+    /* 垂直布局下的时间帧按钮优化 */
+    .timeframe-sample-center .ant-btn,
+    .timeframe-row .ant-btn,
+    .sample-row .ant-btn {
+        padding: 0 3px !important;
+        font-size: 9px !important;
+        margin-right: 1px !important;
+        margin-bottom: 1px !important;
+        min-width: 24px !important;
+        height: 18px !important;
+    }
+
+    /* 状态显示进一步优化 */
+    .status-row {
+        font-size: 8px !important;
+        gap: 2px !important;
+        padding: 2px 0 !important;
+    }
+
+    .status-row .status-label {
+        font-size: 9px !important;
+        margin-right: 4px !important;
+    }
+
+    /* 技术指标面板垂直布局优化 */
+    .technical-indicators-right .embedded-indicators-panel .ant-card-body {
+        padding: 2px !important;
+        overflow: visible !important;
+    }
+
+    .indicator-buttons-section .ant-space {
+        flex-wrap: wrap !important;
+        gap: 1px !important;
+        justify-content: flex-start !important;
+    }
+
+    .indicator-buttons-section .ant-btn {
+        margin: 1px !important;
+        font-size: 8px !important;
+        padding: 0 2px !important;
+        min-width: 20px !important;
+        height: 16px !important;
+        line-height: 14px !important;
+    }
+
+    /* 时间帧和采样标签优化 */
+    .timeframe-row .time-label,
+    .sample-row .sample-label {
+        font-size: 10px !important;
+        margin-right: 4px !important;
+    }
+}
+
+/* 优化超小屏幕 */
+@media (max-width: 576px) {
+    .chart-controls {
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .fullscreen-section .fullscreen-btn {
+        width: 32px;
+        height: 28px;
+    }
+
+    .timeframe-sample-center .ant-btn,
+    .timeframe-row .ant-btn,
+    .sample-row .ant-btn {
+        font-size: 10px !important;
+        height: 20px !important;
+        min-width: 32px !important;
+        padding: 0 4px !important;
+    }
+}
+
+/* 活跃（已选中）按钮样式 - 边框消失，不可点击 */
+.timeframe-controls .ant-btn[disabled] {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #1890ff !important;
+    cursor: default !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+/* 活跃按钮的悬停和焦点状态保持不变 */
+.timeframe-controls .ant-btn[disabled]:hover,
+.timeframe-controls .ant-btn[disabled]:focus {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #1890ff !important;
+}
+
+/* 复选框选中状态样式 */
+.indicator-controls .ant-checkbox-wrapper-checked {
+    color: #1890ff;
+}
+
+/* 动画效果 */
+.chart-controls {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 非活跃按钮增强交互效果 */
+.timeframe-controls .ant-btn:not([disabled]):hover {
+    background-color: #2a2a2a;
+    border-color: #595959;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* 功能按钮控制区域 */
+.function-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #1a1a1a;
+    border: 1px solid #434343;
+    border-radius: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+}
+
+.function-controls .function-label {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 8px;
+    white-space: nowrap;
+}
+
+/* 功能按钮样式 */
+.function-controls .ant-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 60px;
+    height: 28px;
+    background: #1f1f1f;
+    border: 1px solid #555555;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: normal;
+    transition: all 0.2s ease;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.function-controls .ant-btn:hover {
+    border-color: #1890ff;
+    background: #262626;
+    color: #1890ff;
+    transform: translateY(-1px);
+}
+
+.function-controls .ant-btn:active {
+    transform: translateY(0);
+}
+
+.function-controls .ant-btn .ant-btn-icon {
+    font-size: 10px;
+    color: #8c8c8c;
+}
+
+.function-controls .ant-btn:hover .ant-btn-icon {
+    color: #1890ff;
+}
+
+.function-controls .ant-btn.active {
+    border-color: #1890ff;
+    background: rgba(24, 144, 255, 0.15);
+    color: #1890ff;
+}
+
+.function-controls .ant-btn.active .ant-btn-icon {
+    color: #1890ff;
+}
+
+/* 分割线样式优化 */
+.chart-controls .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #434343, transparent);
+    margin: 8px 0;
+    opacity: 0.6;
+}
+
+.chart-controls .divider-solid {
+    width: 100%;
+    height: 1px;
+    background-color: #434343;
+    margin: 12px 0;
+    opacity: 0.8;
+}
+
+/* 技术指标控制面板响应式优化 */
+/* 让技术指标按钮在空间不足时自然换行 */
+.technical-indicators-right .ant-space {
+    flex-wrap: wrap !important;
+}
+
+/* 确保卡片内容区域不会产生水平滚动 */
+.technical-indicators-right .ant-card-body {
+    overflow: hidden;
+    padding: 3px;
+}
+
+/* 技术指标控制面板按钮背景色优化 */
+.technical-indicators-right .ant-btn {
+    background: #1a1a1a !important;
+    border-color: #555555 !important;
+    color: #ffffff;
+}
+
+.technical-indicators-right .ant-btn:hover {
+    background: #262626 !important;
+    border-color: #1890ff !important;
+    color: #1890ff;
+}
+
+.technical-indicators-right .ant-btn:active {
+    background: #1a1a1a !important;
+    border-color: #1890ff !important;
+    color: #1890ff;
+}
+
+/* 确保预设策略按钮也使用正确的背景色 */
+.technical-indicators-right .ant-btn .ant-btn-icon {
+    color: #ffffff;
+}
+
+.technical-indicators-right .ant-btn:hover .ant-btn-icon {
+    color: #1890ff;
+}

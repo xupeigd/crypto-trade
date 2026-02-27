@@ -1,0 +1,458 @@
+.risk-control-order-list {
+    background: #1f1f1f;
+    border-radius: 6px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+    position: relative; /* 确保遮罩层正确定位 */
+    overflow: hidden; /* 防止内容溢出容器 */
+}
+
+.risk-control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.risk-control-header h4 {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.risk-order-item {
+    padding: 8px;
+    margin-bottom: 12px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.2s ease;
+    overflow: visible;
+}
+
+/* 时间状态背景色样式 */
+.risk-order-item.time-low {
+    background: rgba(82, 196, 26, 0.1) !important;
+}
+
+.risk-order-item.time-medium {
+    background: rgba(250, 173, 20, 0.1) !important;
+}
+
+.risk-order-item.time-high {
+    background: rgba(255, 77, 79, 0.1) !important;
+}
+
+.risk-order-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.risk-order-item:last-child {
+    margin-bottom: 0;
+}
+
+.order-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* 简化布局样式 */
+.order-title.simplified {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px; /* 增加间距以适应保证金详情显示 */
+    flex-wrap: nowrap;
+}
+
+.symbol {
+    /* color: #fff !important; 移除强制白色以支持买多绿买空红 */
+    font-weight: 500;
+    font-size: 15px !important; /* 从12px调整为15px */
+    flex-shrink: 0;
+    white-space: nowrap;
+    max-width: 140px; /* 增加最大宽度以适应完整交易对名称 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.order-description {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+/* 简化描述样式 */
+.order-description.simplified {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    margin-top: 2px;
+    min-height: 18px;
+}
+
+/* 时间和图标组合样式 */
+.time-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.time-with-icon .anticon {
+    font-size: 11px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+.price-quantity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 12px;
+}
+
+.risk-level {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.create-time {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+}
+
+/* 简化布局中的时间样式 */
+.order-description.simplified .create-time {
+    font-size: 11px !important;
+    /* 移除color强制设置，允许动态颜色显示 */
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Ant Design 组件样式覆盖 */
+.risk-control-order-list .ant-list-item {
+    padding: 0;
+    border-bottom: none;
+}
+
+.risk-control-order-list .ant-list {
+    border: none;
+}
+
+.risk-control-order-list .ant-list-item-meta-content {
+    flex: 1;
+}
+
+.risk-control-order-list .ant-list-item-meta-title {
+    color: #fff !important;
+    margin-bottom: 4px;
+}
+
+.risk-control-order-list .ant-list-item-meta-description {
+    color: #fff !important;
+}
+
+.risk-control-order-list .ant-list-item:last-child {
+    border-bottom: none;
+}
+
+.risk-control-order-list .ant-list-item-meta {
+    align-items: flex-start;
+}
+
+.risk-control-order-list .ant-list-item-meta-title {
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.risk-control-order-list .ant-list-item-meta-description {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.risk-control-order-list .ant-list-item-action {
+    margin-left: 8px;
+}
+
+.risk-control-order-list .ant-btn-text {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.risk-control-order-list .ant-btn-text:hover {
+    color: #1890ff;
+    background-color: rgba(24, 144, 255, 0.1);
+}
+
+.risk-control-order-list .ant-tag {
+    margin: 0;
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+    line-height: 18px !important;
+    border: none;
+    border-radius: 2px;
+    font-weight: 500 !important;
+    color: #fff !important;
+    min-width: 80px; /* 确保有足够空间显示金额和杠杆 */
+    /* text-align: center; 移除居中对齐 */
+    text-align: left; /* 改为左对齐 */
+    display: inline-block !important;
+}
+
+/* 强制所有文本显示 - 移除颜色强制设置以允许动态颜色 */
+.risk-control-order-list .symbol {
+    /* color: #fff !important; 移除强制白色以支持买多绿买空红 */
+    font-weight: 500 !important;
+    display: block !important;
+    line-height: 1.2 !important;
+}
+
+.risk-control-order-list .ant-tag-blue {
+    background: transparent !important;
+    color: #1890ff !important;
+    /* border: 1px solid #1890ff !important; 移除蓝色边框 */
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+.risk-control-order-list .ant-tag-red {
+    background: #ff4d4f !important;
+    color: #fff !important;
+    border: none !important;
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+.risk-control-order-list .create-time {
+    font-size: 11px !important;
+    display: inline-block !important;
+    visibility: visible !important;
+}
+
+.risk-control-order-list .ant-badge {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.risk-control-order-list .ant-empty-description {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+/* 加载状态样式 */
+.risk-control-order-list .ant-spin-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    min-height: 0; /* 确保flex容器能正确收缩 */
+    max-height: calc(100vh - 280px); /* 减去header和其他元素的高度 */
+}
+
+/* 列表容器样式 */
+.risk-control-order-list .ant-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0; /* 确保flex容器能正确收缩 */
+    max-height: 100%; /* 确保不超过父容器高度 */
+}
+
+.risk-control-order-list .ant-spin-blur {
+    opacity: 0.5;
+    user-select: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 1400px) {
+    .order-title.simplified .symbol {
+        max-width: 120px;
+        font-size: 14px !important; /* 中等屏幕：15px * 0.9 ≈ 13.5px，取整为14px */
+    }
+
+    .order-description.simplified .create-time {
+        max-width: 50px;
+    }
+
+    .risk-control-order-list .ant-tag {
+        min-width: 70px;
+        font-size: 10px !important;
+    }
+}
+
+@media (max-width: 1200px) {
+    .risk-control-order-list {
+        padding: 10px;
+        min-height: 350px;
+    }
+
+    .order-title.simplified .symbol {
+        max-width: 100px;
+        font-size: 12px !important; /* 小屏幕：15px * 0.8 = 12px */
+    }
+
+    .order-description.simplified .create-time {
+        max-width: 45px;
+    }
+
+    .risk-control-order-list .ant-tag {
+        min-width: 65px;
+        font-size: 10px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .risk-control-order-list {
+        padding: 8px;
+        min-height: 300px;
+    }
+
+    .risk-control-header {
+        margin-bottom: 12px;
+    }
+
+    .risk-control-header h4 {
+        font-size: 13px;
+    }
+
+    .order-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .price-quantity {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .risk-level {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+}
+
+/* 暗色主题适配 */
+.risk-control-order-list .ant-list-item-meta-avatar {
+    margin-right: 8px;
+}
+
+.risk-control-order-list .ant-avatar {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 滚动条样式 - 扩展到所有可能的滚动容器 */
+.risk-control-order-list::-webkit-scrollbar,
+.risk-control-order-list .ant-spin-container::-webkit-scrollbar,
+.risk-control-order-list .ant-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.risk-control-order-list::-webkit-scrollbar-track,
+.risk-control-order-list .ant-spin-container::-webkit-scrollbar-track,
+.risk-control-order-list .ant-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.risk-control-order-list::-webkit-scrollbar-thumb,
+.risk-control-order-list .ant-spin-container::-webkit-scrollbar-thumb,
+.risk-control-order-list .ant-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+.risk-control-order-list::-webkit-scrollbar-thumb:hover,
+.risk-control-order-list .ant-spin-container::-webkit-scrollbar-thumb:hover,
+.risk-control-order-list .ant-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* 强制滚动设置 - 使用 !important 确保生效 */
+.risk-control-order-list .ant-spin-container {
+    overflow-y: auto !important;
+    max-height: calc(100vh - 280px) !important;
+}
+
+.risk-control-order-list .ant-list {
+    overflow-y: auto !important;
+}
+
+/* 自动模式遮罩层样式 */
+.manual-mode-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(128, 128, 128, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 6px;
+    backdrop-filter: blur(1px);
+    border: 1px solid rgba(128, 128, 128, 0.3);
+}
+
+.overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    background: rgb(55, 55, 55);
+    border-radius: 8px;
+    border: 1px solid rgb(74, 74, 74);
+    backdrop-filter: blur(4px);
+}
+
+.overlay-icon {
+    font-size: 48px;
+    line-height: 1;
+    filter: grayscale(20%);
+}
+
+.overlay-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #3b82f6;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+
+.overlay-description {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    text-align: center;
+    line-height: 1.4;
+}
+
+

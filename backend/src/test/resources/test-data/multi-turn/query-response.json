@@ -1,0 +1,6 @@
+{
+  "action": "QUERY",
+  "instId": "BTC-USDT-SWAP",
+  "timeframe": "1H",
+  "limit": 100
+}

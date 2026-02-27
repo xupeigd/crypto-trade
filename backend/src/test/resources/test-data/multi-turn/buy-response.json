@@ -1,0 +1,11 @@
+{
+  "action": "BUY",
+  "instId": "BTC-USDT-SWAP",
+  "orderType": "MARKET",
+  "price": 42200,
+  "quantity": 0.1,
+  "takeProfit": 45000,
+  "stopLoss": 40000,
+  "confidence": 85,
+  "reasoning": "技术指标显示上涨趋势,MACD金叉,RSI低于70"
+}

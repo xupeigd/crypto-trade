@@ -1,0 +1,46 @@
+{
+  "decisions": [
+    {
+      "instId": "BTC-USDT-SWAP",
+      "action": "BUY",
+      "side": "LONG",
+      "leverage": 3,
+      "marginDeposit": 50,
+      "orderType": "LIMIT",
+      "orderPrice": 85000,
+      "stopLossPrice": 80000,
+      "takeProfitPrice": 92000,
+      "confidence": 0.7,
+      "timestamp": 1764096763000,
+      "expired": 180000,
+      "judgment": "xxx处于反弹区间且趋势较强，可以做多"
+    },
+    {
+      "instId": "ETH-USDT-SWAP",
+      "action": "CLOSE",
+      "side": "SHORT",
+      "orderType": "MARKET",
+      "position": 0.02,
+      "confidence": 0.6,
+      "timestamp": 1764096763000,
+      "expired": 180000,
+      "judgment": "趋势反转，分批平仓"
+    },
+    {
+      "instId": "ADA-USDT-SWAP",
+      "action": "HOLD",
+      "confidence": 0.5,
+      "timestamp": 1764096763000,
+      "expired": 180000,
+      "judgment": "ADA趋势不明，暂时不操作"
+    },
+    {
+      "instId": "XRP-USDT-SWAP",
+      "action": "CLOSE_ALL",
+      "confidence": 0.9,
+      "timestamp": 1764096763000,
+      "expired": 180000,
+      "judgment": "XRP价格大幅下跌，全仓平仓"
+    }
+  ]
+}

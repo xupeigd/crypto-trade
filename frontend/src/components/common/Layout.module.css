@@ -1,0 +1,87 @@
+/* Dark theme menu customizations */
+.darkSider {
+    background: #001529 !important;
+}
+
+.darkSider .ant-menu {
+    background: #001529 !important;
+    border-right: none !important;
+}
+
+.darkSider .ant-menu-item {
+    margin: 4px 8px !important;
+    width: calc(100% - 16px) !important;
+    border-radius: 6px !important;
+    transition: all 0.3s ease !important;
+}
+
+.darkSider .ant-menu-item:hover {
+    background: #262626 !important;
+    color: #ffffff !important;
+}
+
+.darkSider .ant-menu-item-selected {
+    background: #111b26 !important;
+    color: #1677ff !important;
+}
+
+.darkSider .ant-menu-item-selected::after {
+    display: none !important;
+}
+
+.darkSider .ant-menu-item-icon {
+    color: rgba(255, 255, 255, 0.65) !important;
+    transition: all 0.3s ease !important;
+}
+
+.darkSider .ant-menu-item:hover .ant-menu-item-icon {
+    color: #ffffff !important;
+}
+
+.darkSider .ant-menu-item-selected .ant-menu-item-icon {
+    color: #1677ff !important;
+}
+
+/* Logo area enhancements */
+.logoContainer {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+}
+
+.logoContainer:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Collapsed state optimizations */
+.ant-layout-sider-collapsed .ant-menu-item {
+    margin: 4px auto !important;
+    width: calc(100% - 16px) !important;
+}
+
+.ant-layout-sider-collapsed .logoContainer {
+    margin: 16px 8px !important;
+}
+
+/* Menu item text styling */
+.ant-menu-item span {
+    font-weight: 500 !important;
+}
+
+.ant-menu-item-selected span {
+    font-weight: 600 !important;
+}
+
+/* Smooth transitions for all menu interactions */
+.ant-menu-item,
+.ant-menu-item-icon,
+.logoContainer {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Subtle glow effect for selected items */
+.darkSider .ant-menu-item-selected {
+    box-shadow: 0 0 0 1px rgba(22, 119, 255, 0.2) !important;
+}

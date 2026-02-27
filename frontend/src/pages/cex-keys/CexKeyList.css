@@ -1,0 +1,63 @@
+/* 深色主题表格行样式 */
+.ant-table-tbody > tr {
+    background-color: #424242 !important; /* 深灰色背景 */
+}
+
+.ant-table-tbody > tr:hover {
+    background-color: #424242 !important; /* 悬停时保持相同颜色 */
+}
+
+/* 实盘交易行样式 - 深色主题 */
+.live-trading-row {
+    background-color: #424242 !important; /* 深灰色背景 */
+}
+
+.live-trading-row:hover {
+    background-color: #424242 !important; /* 悬停时保持相同颜色 */
+}
+
+/* 模拟交易行样式 - 深色主题 */
+.simulated-trading-row {
+    background-color: #424242 !important; /* 深灰色背景 */
+}
+
+.simulated-trading-row:hover {
+    background-color: #424242 !important; /* 悬停时保持相同颜色 */
+}
+
+/* 表格单元格样式 - 深色主题 */
+.ant-table-tbody > tr > td {
+    background-color: transparent !important;
+    color: #ffffff !important; /* 白色文字 */
+}
+
+/* 表头样式 - 深色主题 */
+.ant-table-thead > tr > th {
+    background-color: #303030 !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #555 !important;
+}
+
+/* 表格边框样式 - 深色主题 */
+.ant-table {
+    background-color: #303030 !important;
+}
+
+.ant-table-container {
+    background-color: #303030 !important;
+}
+
+/* 禁用Ant Design表格的所有悬停效果 */
+.ant-table-tbody > tr:hover > td {
+    background: transparent !important;
+}
+
+/* 确保实盘交易行悬停时也不变色 */
+.live-trading-row.ant-table-tbody > tr:hover > td {
+    background-color: #424242 !important;
+}
+
+/* 确保模拟交易行悬停时也不变色 */
+.simulated-trading-row.ant-table-tbody > tr:hover > td {
+    background-color: #424242 !important;
+}

@@ -1,0 +1,226 @@
+package com.crypto.trade.service.prompt;
+
+import com.crypto.trade.service.conversation.ToolExecutionResult;
+import com.crypto.trade.service.prompt.processor.DecisionRequirementProcessor;
+import com.crypto.trade.service.prompt.processor.ThinkingModeProcessor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 多轮对话Prompt构建模板
+ * <p>
+ * 负责构建第N轮对话的prompt,包含历史上下文和当前任务信息。
+ * </p>
+ * <p>
+ * 确保每一轮都包含与第一轮相同的完整格式要求：
+ * - 思考模式要求（ThinkingModeProcessor）
+ * - 决策格式要求（DecisionRequirementProcessor）
+ * </p>
+ *
+ * @author Claude
+ * @since 2025-12-27
+ */
+@Slf4j
+@Component
+public class MultiTurnPromptTemplate {
+
+    /**
+     * 思考模式处理器
+     * 用于生成完整的思考模式5步骤说明
+     */
+    @Autowired
+    private ThinkingModeProcessor thinkingModeProcessor;
+
+    /**
+     * 决策要求处理器
+     * 用于生成完整的决策格式要求和示例
+     */
+    @Autowired
+    private DecisionRequirementProcessor decisionRequirementProcessor;
+
+    /**
+     * 构建第N轮的prompt
+     *
+     * @param historySummary      历史对话摘要
+     * @param currentAiResponse   当前AI响应
+     * @param recentToolResults   最近工具执行结果
+     * @param currentRound        当前轮次
+     * @return 下一轮的prompt
+     */
+    public String buildNextTurnPrompt(
+            String historySummary,
+            String currentAiResponse,
+            List<ToolExecutionResult> recentToolResults,
+            int currentRound
+    ) {
+        StringBuilder prompt = new StringBuilder();
+
+        // 1. 历史摘要
+        prompt.append(historySummary).append("\n\n");
+
+        // 2. 当前轮次说明
+        prompt.append("=== 当前轮次分析 ===\n");
+        prompt.append(String.format("你正在执行第%d轮分析(最多10轮)。\n\n", currentRound));
+
+        // 3. 当前AI响应
+        prompt.append("=== 当前AI响应 ===\n");
+        prompt.append(currentAiResponse).append("\n\n");
+
+        // 4. 工具执行结果
+        if (null != recentToolResults && !recentToolResults.isEmpty()) {
+            prompt.append("=== 工具执行结果 ===\n");
+            for (int i = 0; i < recentToolResults.size(); i++) {
+                ToolExecutionResult result = recentToolResults.get(i);
+                prompt.append(String.format("工具 %d: %s\n", i + 1,
+                        result.getSuccess() ? "成功" : "失败"));
+
+                if (result.getSuccess()) {
+                    prompt.append("数据: ").append(formatResultData(result)).append("\n");
+                    prompt.append(String.format("处理时间: %dms\n", result.getProcessingTimeMs()));
+                } else {
+                    prompt.append("错误: ").append(result.getErrorMessage()).append("\n");
+                }
+                prompt.append("\n");
+            }
+        }
+
+        // 5. 思考模式要求（复用ThinkingModeProcessor，确保与第一轮格式一致）
+        try {
+            PromptContext tempContext = PromptContext.builder()
+                    .thinkingModeEnabled(true)
+                    .build();
+
+            // 设置思考模式处理器参数
+            thinkingModeProcessor.setParameters(Map.of(
+                    "enableThinkingMode", true,
+                    "thinkingSteps", 5
+            ));
+
+            // 调用ThinkingModeProcessor获取完整的思考模式说明
+            model.SegmentModel thinkingSegment = thinkingModeProcessor.process(tempContext);
+
+            if (thinkingSegment != null && thinkingSegment.getContent() != null) {
+                prompt.append("=== ").append(thinkingSegment.getTitle()).append(" ===\n");
+                prompt.append(thinkingSegment.getContent()).append("\n\n");
+            }
+        } catch (Exception e) {
+            log.warn("调用ThinkingModeProcessor失败，使用默认格式", e);
+            // 降级处理：使用简化的思考模式说明
+            prompt.append("=== 思考模式要求 ===\n");
+            prompt.append("请在<thinking>标签中展示你的详细分析过程，然后提供最终的交易决策JSON。\n\n");
+        }
+
+        // 6. 决策要求（复用DecisionRequirementProcessor，确保与第一轮格式一致）
+        try {
+            PromptContext tempContext = PromptContext.builder()
+                    .thinkingModeEnabled(true)
+                    .build();
+
+            // 设置决策要求处理器参数
+            decisionRequirementProcessor.setParameters(Map.of(
+                    "outputFormat", "JSON",
+                    "includeToolUsage", true,
+                    "enableActionsArray", true
+            ));
+
+            // 调用DecisionRequirementProcessor获取完整的决策格式说明
+            model.SegmentModel decisionSegment = decisionRequirementProcessor.process(tempContext);
+
+            if (decisionSegment != null && decisionSegment.getContent() != null) {
+                prompt.append("=== ").append(decisionSegment.getTitle()).append(" ===\n");
+                prompt.append(decisionSegment.getContent()).append("\n");
+            }
+        } catch (Exception e) {
+            log.warn("调用DecisionRequirementProcessor失败，使用默认格式", e);
+            // 降级处理：使用简化的决策格式说明
+            prompt.append("=== 继续分析要求 ===\n");
+            prompt.append("基于历史信息和当前工具结果,请继续分析:\n\n");
+            prompt.append("1. 如果还需要更多信息,请继续提出工具调用请求\n");
+            prompt.append("2. 如果信息已足够,请提供最终交易决策JSON\n");
+            prompt.append("3. 决策格式: {\"action\":\"BUY/SELL/HOLD\", ...}\n\n");
+        }
+
+        String finalPrompt = prompt.toString();
+        log.debug("构建第{}轮prompt完成 - 长度: {}", currentRound, finalPrompt.length());
+        return finalPrompt;
+    }
+
+    /**
+     * 格式化工具执行结果数据
+     * <p>
+     * 格式化策略：
+     * 1. 如果是技术指标表格（包含"###"和"技术指标表格"），不截断，完整展示
+     * 2. 如果是普通JSON数据，超过500字符则截断
+     * 3. 其他数据直接转字符串返回
+     * </p>
+     *
+     * @param result 工具执行结果
+     * @return 格式化后的数据字符串
+     */
+    private String formatResultData(ToolExecutionResult result) {
+        if (null == result.getData()) {
+            return "[无数据]";
+        }
+
+        try {
+            String dataStr = result.getData().toString();
+
+            // 判断是否为技术指标表格
+            // 技术指标表格的特征：包含"###"和"技术指标表格"关键字
+            if (isTechnicalIndicatorTable(dataStr)) {
+                // 技术指标表格不截断，完整展示
+                log.debug("识别到技术指标表格，完整展示 - 长度: {}", dataStr.length());
+                return dataStr;
+            }
+
+            // 普通数据，超过500字符则截断
+            if (dataStr.length() > 500) {
+                log.debug("数据过长，截断展示 - 原始长度: {}", dataStr.length());
+                return dataStr.substring(0, 500) + "...(已截断)";
+            }
+
+            return dataStr;
+        } catch (Exception e) {
+            log.warn("格式化工具结果数据失败", e);
+            return "[数据格式化失败: " + e.getMessage() + "]";
+        }
+    }
+
+    /**
+     * 判断是否为技术指标表格
+     * <p>
+     * 技术指标表格的特征：
+     * 1. 包含"###"标记（Markdown标题）
+     * 2. 包含"技术指标表格"关键字
+     * </p>
+     *
+     * @param dataStr 数据字符串
+     * @return 是否为技术指标表格
+     */
+    private boolean isTechnicalIndicatorTable(String dataStr) {
+        if (dataStr == null || dataStr.trim().isEmpty()) {
+            return false;
+        }
+
+        // 检查是否包含技术指标表格的特征标记
+        return dataStr.contains("###") &&
+                dataStr.contains("技术指标表格") &&
+                dataStr.contains("|") && // 包含表格分隔符
+                dataStr.contains("EMA(") && // 包含EMA指标
+                dataStr.contains("RSI("); // 包含RSI指标
+    }
+
+    /**
+     * 构建第一轮prompt(用于多轮对话的起始)
+     *
+     * @param originalPrompt 原始用户prompt
+     * @return 第一轮prompt
+     */
+    public String buildFirstTurnPrompt(String originalPrompt) {
+        return originalPrompt;
+    }
+}
