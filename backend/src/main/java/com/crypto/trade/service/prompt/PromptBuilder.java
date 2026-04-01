@@ -42,6 +42,8 @@ public class PromptBuilder {
     @Autowired
     PendingOrdersPromptProcessor pendingOrdersPromptProcessor;
     @Autowired
+    PendingOrdersKlinePromptProcessor pendingOrdersKlinePromptProcessor;
+    @Autowired
     TechnicalIndicatorProcessor technicalIndicatorProcessor;
     @Autowired
     MarketDataProcessor marketDataProcessor;
@@ -57,6 +59,8 @@ public class PromptBuilder {
     OrderHistoryProcessor orderHistoryProcessor;
     @Autowired
     StrategySuggestionProcessor strategySuggestionProcessor;
+    @Autowired
+    AttentionPromptProcessor attentionPromptProcessor;
 
     /**
      * 初始化方法
@@ -68,6 +72,7 @@ public class PromptBuilder {
         defaultProcessors.add(positionInfoProcessor);
         defaultProcessors.add(technicalIndicatorProcessor);
         defaultProcessors.add(pendingOrdersPromptProcessor);
+        defaultProcessors.add(pendingOrdersKlinePromptProcessor);
         defaultProcessors.add(marketDataProcessor);
         defaultProcessors.add(positionHistoryProcessor);
         defaultProcessors.add(orderHistoryProcessor);
@@ -75,7 +80,8 @@ public class PromptBuilder {
         defaultProcessors.add(tradeRulePromptProcessor);
         defaultProcessors.add(thinkingModeProcessor);
         defaultProcessors.add(decisionRequirementProcessor);
-        log.info("PromptBuilder 初始化完成，加载了 {} 个处理器", defaultProcessors.size());
+        defaultProcessors.add(attentionPromptProcessor);
+        log.debug("PromptBuilder 初始化完成，加载了 {} 个处理器", defaultProcessors.size());
     }
 
     /**
@@ -176,7 +182,7 @@ public class PromptBuilder {
             String segmentContent = formatSegment(segment, format);
 
             if (!segmentContent.trim().isEmpty()) {
-                if (promptBuilder.length() > 0) {
+                if (!promptBuilder.isEmpty()) {
                     promptBuilder.append("\n");
                 }
                 promptBuilder.append(segmentContent);
@@ -194,17 +200,12 @@ public class PromptBuilder {
      * @return 格式化后的内容
      */
     private String formatSegment(SegmentModel segment, String format) {
-        switch (format.toUpperCase()) {
-            case "MARKDOWN":
-                return formatSegmentAsMarkdown(segment);
-            case "HTML":
-                return formatSegmentAsHtml(segment);
-            case "CUSTOM":
-                return formatSegmentAsCustom(segment);
-            case "DEFAULT":
-            default:
-                return formatSegmentAsDefault(segment);
-        }
+        return switch (format.toUpperCase()) {
+            case "MARKDOWN" -> formatSegmentAsMarkdown(segment);
+            case "HTML" -> formatSegmentAsHtml(segment);
+            case "CUSTOM" -> formatSegmentAsCustom(segment);
+            default -> formatSegmentAsDefault(segment);
+        };
     }
 
     /**
@@ -292,7 +293,7 @@ public class PromptBuilder {
             Integer estimatedTokens = (buildResult.getPromptContent().length() / 4) + 100;
 
             List<PositionModel> positionModels = null;
-            @SuppressWarnings("unchecked") List<CexPosition> positions = context.getCustomData("positions");
+            List<CexPosition> positions = context.getCustomData("positions");
             if (!CollectionUtils.isEmpty(positions)) {
                 positionModels = CexPositionAdapter.toPositionModelList(positions);
             }

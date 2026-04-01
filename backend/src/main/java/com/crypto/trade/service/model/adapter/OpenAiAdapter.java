@@ -30,7 +30,8 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class OpenAiAdapter implements ApiAdapter {
+public class OpenAiAdapter
+        implements ApiAdapter {
 
     private static final String CHAT_COMPLETIONS_ENDPOINT = "/v1/chat/completions";
     @Autowired
@@ -74,13 +75,27 @@ public class OpenAiAdapter implements ApiAdapter {
      * @throws ApiAdapterException 构建请求失败时抛出
      */
     public HttpRequest buildMessagesRequest(List<UnifiedModelFactory.Message> messages, AIModelConfig config) throws ApiAdapterException {
+        return buildMessagesRequest(messages, config, null);
+    }
+
+    /**
+     * 使用messages数组构建OpenAI请求（支持tools）
+     *
+     * @param messages 消息数组
+     * @param config   模型配置
+     * @param tools    工具定义列表（可选）
+     * @return HTTP请求
+     * @throws ApiAdapterException 构建请求失败时抛出
+     */
+    public HttpRequest buildMessagesRequest(List<UnifiedModelFactory.Message> messages, AIModelConfig config,
+                                            List<UnifiedModelFactory.Tool> tools) throws ApiAdapterException {
         if (!validateConfig(config)) {
             throw new ApiAdapterException("OpenAI配置验证失败",
                     ApiAdapterException.ErrorCodes.INVALID_REQUEST, "400");
         }
 
         try {
-            String requestBody = buildMessagesRequestBody(messages, config);
+            String requestBody = buildMessagesRequestBody(messages, config, tools);
             String url = buildApiUrl(config);
 
             return HttpRequest.newBuilder()
@@ -107,6 +122,19 @@ public class OpenAiAdapter implements ApiAdapter {
      * @return JSON格式的请求体
      */
     public String buildMessagesRequestBody(List<UnifiedModelFactory.Message> messages, AIModelConfig config) {
+        return buildMessagesRequestBody(messages, config, null);
+    }
+
+    /**
+     * 使用messages数组构建OpenAI请求体（支持tools）
+     *
+     * @param messages 消息数组
+     * @param config   模型配置
+     * @param tools    工具定义列表（可选）
+     * @return JSON格式的请求体
+     */
+    public String buildMessagesRequestBody(List<UnifiedModelFactory.Message> messages, AIModelConfig config,
+                                           List<UnifiedModelFactory.Tool> tools) {
         try {
             Map<String, Object> requestBody = new HashMap<>(8);
 
@@ -114,11 +142,34 @@ public class OpenAiAdapter implements ApiAdapter {
             requestBody.put("model", config.getModelId());
 
             // 转换消息格式
-            List<Map<String, String>> openaiMessages = new ArrayList<>();
+            List<Map<String, Object>> openaiMessages = new ArrayList<>();
             for (UnifiedModelFactory.Message msg : messages) {
-                Map<String, String> message = new HashMap<>();
+                Map<String, Object> message = new HashMap<>();
                 message.put("role", msg.getRole());
                 message.put("content", msg.getContent());
+                // 如果有name字段（tool类型的消息），添加tool_call_id
+                if (msg.getName() != null) {
+                    message.put("tool_call_id", msg.getName());
+                }
+                // 如果有reasoning_content字段（DeepSeek R1），添加reasoning_content
+                if (msg.getReasoningContent() != null && !msg.getReasoningContent().isEmpty()) {
+                    message.put("reasoning_content", msg.getReasoningContent());
+                }
+                // 如果有tool_calls字段（assistant类型的消息），添加tool_calls
+                if (msg.getToolCalls() != null && !msg.getToolCalls().isEmpty()) {
+                    List<Map<String, Object>> toolCalls = new ArrayList<>();
+                    for (UnifiedModelFactory.ToolCall tc : msg.getToolCalls()) {
+                        Map<String, Object> toolCall = new HashMap<>();
+                        toolCall.put("id", tc.getId());
+                        toolCall.put("type", tc.getType());
+                        Map<String, Object> function = new HashMap<>();
+                        function.put("name", tc.getFunction().getName());
+                        function.put("arguments", tc.getFunction().getArguments());
+                        toolCall.put("function", function);
+                        toolCalls.add(toolCall);
+                    }
+                    message.put("tool_calls", toolCalls);
+                }
                 openaiMessages.add(message);
             }
             requestBody.put("messages", openaiMessages);
@@ -133,6 +184,12 @@ public class OpenAiAdapter implements ApiAdapter {
 
             // 设置流式响应为false
             requestBody.put("stream", false);
+
+            // 添加tools参数（支持Function Calling）
+            if (tools != null && !tools.isEmpty()) {
+                requestBody.put("tools", tools);
+                log.debug("添加tools参数，工具数量: {}", tools.size());
+            }
 
             // 合并extra_body中的额外参数(会覆盖默认参数)
             if (config.getExtraBody() != null && !config.getExtraBody().trim().isEmpty()) {
@@ -168,6 +225,18 @@ public class OpenAiAdapter implements ApiAdapter {
 
     @Override
     public String parseResponse(HttpResponse<String> response) throws ApiAdapterException {
+        return parseResponse(response, false);
+    }
+
+    /**
+     * 解析OpenAI响应（支持Function Calling）
+     *
+     * @param response           HTTP响应
+     * @param expectFunctionCall 是否期望function_call响应
+     * @return 响应内容，如果是function_call则返回包含函数调用信息的JSON
+     * @throws ApiAdapterException 解析失败时抛出
+     */
+    public String parseResponse(HttpResponse<String> response, boolean expectFunctionCall) throws ApiAdapterException {
         if (!isSuccess(response)) {
             String errorInfo = handleOpenAiErrorResponse(response);
             throw new ApiAdapterException(errorInfo,
@@ -183,10 +252,70 @@ public class OpenAiAdapter implements ApiAdapter {
             if (choices.isArray() && choices.size() > 0) {
                 JsonNode firstChoice = choices.get(0);
                 JsonNode message = firstChoice.path("message");
-                JsonNode content = message.path("content");
 
-                if (!content.isMissingNode()) {
-                    return content.asText();
+                // 检查是否有tool_calls（多数模型使用此格式）
+                JsonNode toolCalls = message.path("tool_calls");
+                if (!toolCalls.isMissingNode() && toolCalls.isArray() && toolCalls.size() > 0) {
+                    JsonNode firstToolCall = toolCalls.get(0);
+                    String toolCallId = firstToolCall.path("id").asText();
+                    JsonNode function = firstToolCall.path("function");
+                    String functionName = function.path("name").asText();
+                    JsonNode argumentsNode = function.path("arguments");
+                    String arguments;
+                    if (argumentsNode.isObject()) {
+                        // arguments是JSON对象，需要转换为字符串
+                        arguments = argumentsNode.toString();
+                    } else {
+                        // arguments是字符串
+                        arguments = argumentsNode.asText();
+                    }
+                    log.info("检测到tool_calls: {}, tool_call_id: {}, 参数长度: {}", functionName, toolCallId, arguments.length());
+
+                    // 尝试提取reasoning_content
+                    String reasoningContent = null;
+                    JsonNode reasoningContentNode = message.path("reasoning_content");
+                    if (!reasoningContentNode.isMissingNode()) {
+                        reasoningContent = reasoningContentNode.asText();
+                    }
+
+                    return buildFunctionCallResponse(functionName, arguments, toolCallId, reasoningContent);
+                }
+
+                // 检查是否有function_call（旧格式，某些模型使用）
+                JsonNode functionCall = message.path("function_call");
+                if (!functionCall.isMissingNode()) {
+                    // 解析function_call
+                    String functionName = functionCall.path("name").asText();
+                    JsonNode argumentsNode = functionCall.path("arguments");
+                    String arguments;
+                    if (argumentsNode.isObject()) {
+                        // arguments是JSON对象，需要转换为字符串
+                        arguments = argumentsNode.toString();
+                    } else {
+                        // arguments是字符串
+                        arguments = argumentsNode.asText();
+                    }
+                    log.info("检测到function_call: {}, 参数长度: {}", functionName, arguments.length());
+
+                    // 返回格式化的function_call信息
+                    return buildFunctionCallResponse(functionName, arguments, null, null);
+                }
+
+                // 普通文本响应
+                JsonNode content = message.path("content");
+                String contentText = content.isMissingNode() ? "" : content.asText();
+
+                // 如果content为空，尝试获取reasoning_content (DeepSeek Reasoner模型)
+                if (contentText.isEmpty()) {
+                    JsonNode reasoningContent = message.path("reasoning_content");
+                    if (!reasoningContent.isMissingNode()) {
+                        contentText = reasoningContent.asText();
+                        log.debug("使用reasoning_content作为响应内容，长度: {}", contentText.length());
+                    }
+                }
+
+                if (!contentText.isEmpty()) {
+                    return contentText;
                 }
             }
 
@@ -198,6 +327,28 @@ public class OpenAiAdapter implements ApiAdapter {
             log.error("解析OpenAI响应失败: {}", e.getMessage(), e);
             throw new ApiAdapterException("解析响应失败: " + e.getMessage(),
                     ApiAdapterException.ErrorCodes.PARSE_ERROR, "500");
+        }
+    }
+
+    /**
+     * 构建function_call响应JSON
+     */
+    private String buildFunctionCallResponse(String functionName, String arguments, String toolCallId, String reasoningContent) {
+        try {
+            Map<String, Object> result = new HashMap<>();
+            result.put("type", "function_call");
+            result.put("name", functionName);
+            result.put("arguments", arguments);
+            if (toolCallId != null && !toolCallId.isEmpty()) {
+                result.put("tool_call_id", toolCallId);
+            }
+            if (reasoningContent != null && !reasoningContent.isEmpty()) {
+                result.put("reasoning_content", reasoningContent);
+            }
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception e) {
+            log.error("构建function_call响应失败", e);
+            return "{\"type\":\"function_call\",\"name\":\"" + functionName + "\",\"arguments\":\"" + arguments + "\"}";
         }
     }
 

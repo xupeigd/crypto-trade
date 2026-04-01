@@ -65,7 +65,7 @@ public class PositionSnapshotPersistenceService {
     @Scheduled(cron = "0 */5 * * * ?")
     @Transactional
     public void persistPositionData() {
-        log.info("开始执行仓位快照持久化任务(最近{}天)", HISTORY_DAYS);
+        log.debug("开始执行仓位快照持久化任务(最近{}天)", HISTORY_DAYS);
 
         try {
             // 获取所有活跃的OKX API Key

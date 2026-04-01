@@ -203,4 +203,9 @@ public class PositionModel {
     BigDecimal openAvgPx;
 
     BigDecimal closeAvgPx;
+
+    /**
+     * 交易所名称
+     */
+    String vendor;
 }

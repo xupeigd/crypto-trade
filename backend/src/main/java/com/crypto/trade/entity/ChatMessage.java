@@ -50,6 +50,12 @@ public class ChatMessage {
     @Column(name = "processing_time_ms")
     private Long processingTimeMs;
 
+    @Column(name = "tool_call_id", length = 100)
+    private String toolCallId; // tool调用ID
+
+    @Column(name = "function_name", length = 100)
+    private String functionName; // 调用的函数名
+
     @Column(name = "created_time")
     private LocalDateTime createdTime = LocalDateTime.now();
 

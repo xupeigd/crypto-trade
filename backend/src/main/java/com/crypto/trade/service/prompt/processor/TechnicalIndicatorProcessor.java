@@ -61,7 +61,7 @@ public class TechnicalIndicatorProcessor
 
     @Override
     public int getPriority() {
-        return 40; // 中等优先级
+        return 30; // 中等优先级
     }
 
     @Override
@@ -107,9 +107,9 @@ public class TechnicalIndicatorProcessor
                         .build();
             }
 
-            // 获取多时间周期技术指标数据
+            // 获取多时间周期技术指标数据，传入context支持去重
             Map<String, Map<String, TechnicalIndicators>> multiTimeframeIndicators =
-                    getMultiTimeframeIndicators(positions, timeframes, dataCount, context.getApiKeyId());
+                    getMultiTimeframeIndicators(positions, timeframes, dataCount, context.getApiKeyId(), context);
 
             if (multiTimeframeIndicators == null || multiTimeframeIndicators.isEmpty()) {
                 return SegmentModel.builder()
@@ -194,7 +194,7 @@ public class TechnicalIndicatorProcessor
      * 获取多时间周期技术指标数据
      */
     private Map<String, Map<String, TechnicalIndicators>> getMultiTimeframeIndicators(List<CexPosition> positions, String[] timeframes,
-                                                                                      int dataCount, Long apiKeyId) {
+                                                                                      int dataCount, Long apiKeyId, PromptContext context) {
         try {
             log.debug("开始获取多时间周期技术指标数据 - 时间周期: {}, 数据量: {}",
                     Arrays.toString(timeframes), dataCount);
@@ -215,7 +215,7 @@ public class TechnicalIndicatorProcessor
                         try {
                             log.debug("开始计算{}时间周期技术指标", timeframe);
                             Map<String, TechnicalIndicators> timeframeIndicators =
-                                    calculateTimeframeIndicators(uniqueInstIds, timeframe, dataCount, apiKeyId);
+                                    calculateTimeframeIndicators(uniqueInstIds, timeframe, dataCount, apiKeyId, context);
 
                             if (timeframeIndicators != null && !timeframeIndicators.isEmpty()) {
                                 synchronized (result) {
@@ -245,7 +245,7 @@ public class TechnicalIndicatorProcessor
      * 计算单个时间周期的技术指标
      */
     private Map<String, TechnicalIndicators> calculateTimeframeIndicators(List<String> instIds, String timeframe, int dataCount,
-                                                                          Long apiKeyId) {
+                                                                          Long apiKeyId, PromptContext context) {
         try {
             // 获取技术指标周期参数
             List<Integer> rsiPeriods = getIntListParameter("rsiPeriods", Arrays.asList(5, 20, 30));
@@ -291,6 +291,12 @@ public class TechnicalIndicatorProcessor
 
             for (String instId : instIds) {
                 try {
+                    // 去重检查：如果context不为null，检查是否已处理过该instId#timeframe
+                    if (context != null && !context.checkAndMarkProcessed(instId, timeframe)) {
+                        log.debug("持仓技术指标已返回过，跳过 - instId: {}, timeframe: {}", instId, timeframe);
+                        continue;  // 已处理过，跳过
+                    }
+
                     // 使用通用CEX方法获取K线数据
                     var candles = unifiedCexApiService.getMarketCandles(apiKeykey, instId, timeframe, requiredDataCount);
                     if (candles == null || candles.isEmpty()) {
@@ -2102,11 +2108,23 @@ public class TechnicalIndicatorProcessor
             table.append(timestamp).append(" | ");
         }
         table.append("\n");
-
         // 构建分隔线
         table.append("|-----------| ");
         table.append("------ | ".repeat(timestamps.size()));
         table.append("\n");
+
+        // 构建时间戳行（仅在 function calling 时返回）
+        table.append("| 时间戳 | ");
+        for (int i = 0; i < timestamps.size(); i++) {
+            TechnicalIndicators.OhlcData ohlc = indicators.getOhlcHistory().get(i);
+            table.append(ohlc.getTimestamp()).append(" | ");
+        }
+        table.append("\n");
+
+        // 构建分隔线
+//        table.append("|-----------| ");
+//        table.append("------ | ".repeat(timestamps.size()));
+//        table.append("\n");
 
         // 添加OHLC数据行
         addOhlcRowsToTable(table, indicators, timestamps.size());
@@ -2634,9 +2652,41 @@ public class TechnicalIndicatorProcessor
      * @return 格式化的技术指标表格字符串
      */
     public String processQuery(String instId, String timeframe, int limit, Long apiKeyId) {
+        // 调用带context的方法，context为null时不进行去重检查
+        return processQuery(instId, timeframe, limit, apiKeyId, null);
+    }
+
+    /**
+     * 处理多轮会话中的QUERY工具调用（支持去重）
+     * <p>
+     * 此方法用于处理多轮会话中的QUERY工具调用，返回与第1次prompt相同格式的技术指标表格。
+     * 支持通过PromptContext进行全局去重，防止相同的instId#timeframe重复返回技术指标。
+     * </p>
+     * <p>
+     * 处理流程：
+     * 1. 去重检查（如果context不为null）
+     * 2. 获取K线数据（基于Query参数）
+     * 3. 计算技术指标（RSI、EMA、BOLL）
+     * 4. 格式化为用户表格（USER_TABLE格式）
+     * 5. 返回格式化结果
+     * </p>
+     *
+     * @param instId    合约代码（如：BTC-USDT-SWAP）
+     * @param timeframe 时间周期（如：1H、4H、1D）
+     * @param limit     数据条数
+     * @param apiKeyId  API密钥ID
+     * @param context   Prompt上下文（用于去重检查，可为null）
+     * @return 格式化的技术指标表格字符串，如果已处理过则返回空字符串
+     */
+    public String processQuery(String instId, String timeframe, int limit, Long apiKeyId, PromptContext context) {
         try {
-            log.debug("开始处理多轮会话Query - instId: {}, timeframe: {}, limit: {}",
-                    instId, timeframe, limit);
+            log.debug("开始处理技术指标查询 - instId: {}, timeframe: {}, limit: {}", instId, timeframe, limit);
+
+            // 去重检查：如果context不为null，检查是否已处理过该instId#timeframe
+            if (context != null && !context.checkAndMarkProcessed(instId, timeframe)) {
+                log.debug("技术指标已返回过，跳过 - instId: {}, timeframe: {}", instId, timeframe);
+                return "";  // 静默跳过，返回空字符串
+            }
 
             // 参数校验
             if (instId == null || instId.trim().isEmpty()) {

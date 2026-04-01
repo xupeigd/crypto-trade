@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Alert, Empty, Modal, Spin} from 'antd';
-import {klineBarsFromCandles, KLineChart} from '../charts/KLineChart';
+import {klineBarsFromCandles} from '../charts/KLineChart';
+import LightweightCandlestickChart, {KLineBar} from '../charts/LightweightCandlestickChart';
 import {CandlestickData} from '../../pages/trading/components/CandlestickChart';
 import {useDrag} from '../../hooks/useDrag';
 
@@ -306,14 +307,11 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({
                         />
                     </div>
                 ) : (
-                    <KLineChart
-                        period="5m"
+                    <LightweightCandlestickChart
                         data={bars}
+                        height={500}
                         markPrice={chartData.length > 0 ? chartData[chartData.length - 1].close : null}
-                        markPriceColor={chartData.length > 0 ? (() => {
-                            const currentCandle = chartData[chartData.length - 1];
-                            return currentCandle.close >= currentCandle.open ? '#52c41a' : '#ff4d4f';
-                        })() : undefined}
+                        markPriceColor={chartData.length > 0 ? (chartData[chartData.length - 1].close >= chartData[chartData.length - 1].open ? '#52c41a' : '#ff4d4f') : undefined}
                     />
                 )}
             </div>

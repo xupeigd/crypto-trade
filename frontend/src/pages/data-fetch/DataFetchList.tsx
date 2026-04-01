@@ -49,7 +49,7 @@ const DataFetchList: React.FC = () => {
                 dataFetchService.getAllConfigs(),
                 taskService.getAllTasks(),
                 cexKeyService.getAllKeys(),
-                proxyService.getActiveConfigs(),
+                proxyService.getAllConfigs(),
             ]);
             setConfigs(configsData);
             setTasks(tasksData);
@@ -116,7 +116,7 @@ const DataFetchList: React.FC = () => {
             },
         },
         {
-            title: 'API地址',
+            title: 'Host',
             dataIndex: 'cexBaseUrl',
             key: 'cexBaseUrl',
             width: 200,
@@ -129,7 +129,7 @@ const DataFetchList: React.FC = () => {
             width: 180,
         },
         {
-            title: 'HTTP方法',
+            title: '方法',
             dataIndex: 'httpMethod',
             key: 'httpMethod',
             width: 100,
@@ -140,7 +140,7 @@ const DataFetchList: React.FC = () => {
             ),
         },
         {
-            title: '需要鉴权',
+            title: '鉴权',
             dataIndex: 'requiresAuth',
             key: 'requiresAuth',
             width: 100,
@@ -151,7 +151,7 @@ const DataFetchList: React.FC = () => {
             ),
         },
         {
-            title: '使用代理',
+            title: '代理',
             dataIndex: 'requiresProxy',
             key: 'requiresProxy',
             width: 150,
@@ -164,11 +164,19 @@ const DataFetchList: React.FC = () => {
                     );
                 }
 
-                const proxyConfig = record.proxyServiceConfig;
+                const proxyConfig = record.proxyServiceConfig || proxyConfigs.find(proxy => proxy.proxyId === record.proxyId);
                 if (proxyConfig) {
                     return (
+                        <Tag color={proxyConfig.status === 'active' ? 'blue' : 'gold'}>
+                            <CheckOutlined/> {proxyConfig.proxyName}{proxyConfig.status === 'active' ? '' : '（已禁用）'}
+                        </Tag>
+                    );
+                }
+
+                if (record.proxyId) {
+                    return (
                         <Tag color="blue">
-                            <CheckOutlined/> {proxyConfig.proxyName}
+                            <CheckOutlined/> 代理ID: {record.proxyId}
                         </Tag>
                     );
                 }
@@ -327,7 +335,7 @@ const DataFetchList: React.FC = () => {
                                     <Select placeholder="请选择API Key">
                                         {activeCexKeys.map(key => (
                                             <Option key={key.keyId} value={key.keyId!}>
-                                                {key.cexName} - {key.description || '无描述'}
+                                                {key.keyName} ({key.cexName})
                                             </Option>
                                         ))}
                                     </Select>
@@ -363,7 +371,7 @@ const DataFetchList: React.FC = () => {
                                     rules={[{required: true, message: '请选择代理配置'}]}
                                 >
                                     <Select placeholder="请选择代理配置">
-                                        {proxyConfigs.map(proxy => (
+                                        {proxyConfigs.filter(proxy => proxy.status === 'active').map(proxy => (
                                             <Option key={proxy.proxyId} value={proxy.proxyId!}>
                                                 {proxy.proxyName} ({proxy.proxyType}://{proxy.serverHost}:{proxy.serverPort})
                                             </Option>

@@ -4,6 +4,7 @@ import com.crypto.trade.entity.AIModelConfig;
 import com.crypto.trade.enums.ApiFormat;
 import com.crypto.trade.enums.ModelType;
 import com.crypto.trade.service.UnifiedModelFactory;
+import com.crypto.trade.service.model.adapter.ClaudeAdapter;
 import com.crypto.trade.service.model.adapter.OpenAiAdapter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,9 @@ public class RemoteModelCaller
 
     @Autowired
     OpenAiAdapter openAiAdapter;
+
+    @Autowired
+    ClaudeAdapter claudeAdapter;
 
     public RemoteModelCaller() {
         this.httpClient = HttpClient.newBuilder()
@@ -118,7 +122,8 @@ public class RemoteModelCaller
             ApiAdapter adapter = getAdapter(config.getApiFormat());
 
             // 检查适配器是否支持messages格式
-            if (!(adapter instanceof OpenAiAdapter openAiAdapter)) {
+            if (!(adapter instanceof OpenAiAdapter)
+                    && !(adapter instanceof ClaudeAdapter)) {
                 throw new UnifiedModelFactory.ModelCallException(
                         "当前API格式不支持messages数组调用: " + config.getApiFormat(),
                         config.getModelId()
@@ -149,6 +154,76 @@ public class RemoteModelCaller
             throw e;
         } catch (Exception e) {
             log.error("远端模型调用失败(使用messages): {}", config.getModelId(), e);
+            // 根据异常类型设置不同的错误代码
+            String errorCode = determineErrorCode(e);
+            throw new UnifiedModelFactory.ModelCallException("远端模型调用失败: " + e.getMessage(), e, errorCode,
+                    config.getModelId());
+        }
+    }
+
+    @Override
+    public String callWithMessagesAndTools(List<UnifiedModelFactory.Message> messages, AIModelConfig config,
+                                           List<UnifiedModelFactory.Tool> tools) throws UnifiedModelFactory.ModelCallException {
+        if (config == null || !config.isRemoteModel()) {
+            throw new UnifiedModelFactory.ModelCallException("配置无效或不是远端模型",
+                    config != null ? config.getModelId() : "unknown");
+        }
+
+        if (CollectionUtils.isEmpty(messages)) {
+            throw new UnifiedModelFactory.ModelCallException("消息数组不能为空", config.getModelId());
+        }
+
+        try {
+            log.debug("调用远端模型(使用messages和tools): {}, API格式: {}, 消息数: {}, 工具数: {}",
+                    config.getModelId(), config.getApiFormat(), messages.size(), tools != null ? tools.size() : 0);
+
+            // 记录发送的messages内容（用于调试）
+            log.debug("【远端模型调用】发送的messages数组:");
+            for (int i = 0; i < messages.size(); i++) {
+                UnifiedModelFactory.Message msg = messages.get(i);
+                String contentPreview = msg.getContent() != null && msg.getContent().length() > 100
+                        ? msg.getContent().substring(0, 100) + "..."
+                        : (msg.getContent() != null ? msg.getContent() : "null");
+                log.debug("【远端模型调用】[{}] role: {}, content.length: {}, preview: {}",
+                        i, msg.getRole(), msg.getContent() != null ? msg.getContent().length() : 0, contentPreview);
+            }
+
+            // 根据API格式选择适配器
+            ApiAdapter adapter = getAdapter(config.getApiFormat());
+
+            // 检查适配器是否支持messages格式
+            if (!(adapter instanceof OpenAiAdapter)
+                    && !(adapter instanceof ClaudeAdapter)) {
+                throw new UnifiedModelFactory.ModelCallException(
+                        "当前API格式不支持messages数组调用: " + config.getApiFormat(),
+                        config.getModelId()
+                );
+            }
+
+            // 构建请求（带tools）
+            HttpRequest request = openAiAdapter.buildMessagesRequest(messages, config, tools);
+
+            // 发送请求
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // 解析响应（期望处理function_call）
+            String result = openAiAdapter.parseResponse(response, true);
+
+            log.debug("【远端模型调用】响应长度: {}", result.length());
+            if (result.isEmpty()) {
+                log.error("【远端模型调用】严重错误：模型返回了空响应！");
+                log.error("【远端模型调用】HTTP状态码: {}", response.statusCode());
+                log.error("【远端模型调用】响应体: {}", response.body());
+            }
+
+            log.debug("远端模型调用成功(使用messages和tools): {}, 响应长度: {}", config.getModelId(), result.length());
+            return result;
+
+        } catch (UnifiedModelFactory.ModelCallException e) {
+            // 直接重新抛出ModelCallException
+            throw e;
+        } catch (Exception e) {
+            log.error("远端模型调用失败(使用messages和tools): {}", config.getModelId(), e);
             // 根据异常类型设置不同的错误代码
             String errorCode = determineErrorCode(e);
             throw new UnifiedModelFactory.ModelCallException("远端模型调用失败: " + e.getMessage(), e, errorCode,
@@ -220,8 +295,7 @@ public class RemoteModelCaller
             case OPENAI:
                 return openAiAdapter;
             case CLAUDE:
-                // TODO: 实现ClaudeAdapter
-                throw new UnifiedModelFactory.ModelCallException("Claude适配器暂未实现", apiFormat);
+                return claudeAdapter;
             case CUSTOM:
                 // TODO: 实现CustomAdapter
                 throw new UnifiedModelFactory.ModelCallException("自定义适配器暂未实现", apiFormat);
@@ -319,6 +393,43 @@ public class RemoteModelCaller
 
                 if (attempt < maxRetries) {
                     log.warn("远端模型调用失败(使用messages)，第{}次重试: {}", attempt, config.getModelId());
+                    try {
+                        Thread.sleep(1000L * attempt); // 递增延迟
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new UnifiedModelFactory.ModelCallException("调用被中断", ie,
+                                UnifiedModelFactory.ModelCallException.ErrorCodes.UNKNOWN_ERROR, config.getModelId());
+                    }
+                }
+            }
+        }
+
+        throw lastException;
+    }
+
+    /**
+     * 重试机制调用（使用messages数组和tools格式）
+     */
+    public String callWithMessagesAndToolsWithRetry(List<UnifiedModelFactory.Message> messages, AIModelConfig config,
+                                                    List<UnifiedModelFactory.Tool> tools) throws UnifiedModelFactory.ModelCallException {
+        UnifiedModelFactory.ModelCallException lastException = null;
+        int maxRetries = config.getRetryCount() != null ? config.getRetryCount() : 3;
+
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return callWithMessagesAndTools(messages, config, tools);
+            } catch (UnifiedModelFactory.ModelCallException e) {
+                lastException = e;
+
+                // 如果是认证错误或模型不存在错误，不进行重试
+                if (UnifiedModelFactory.ModelCallException.ErrorCodes.AUTHENTICATION_ERROR.equals(e.getErrorCode()) ||
+                        UnifiedModelFactory.ModelCallException.ErrorCodes.MODEL_NOT_FOUND.equals(e.getErrorCode()) ||
+                        UnifiedModelFactory.ModelCallException.ErrorCodes.INVALID_REQUEST.equals(e.getErrorCode())) {
+                    throw e;
+                }
+
+                if (attempt < maxRetries) {
+                    log.warn("远端模型调用失败(使用messages和tools)，第{}次重试: {}", attempt, config.getModelId());
                     try {
                         Thread.sleep(1000L * attempt); // 递增延迟
                     } catch (InterruptedException ie) {

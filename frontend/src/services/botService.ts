@@ -118,6 +118,18 @@ export interface PromptHistoryResponse {
     // 风控状态和交易动作状态
     riskControlStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'BYPASSED' | null; // 风控状态（使用后端原始值）
     tradeActionStatus?: 'PENDING' | 'EXECUTING' | 'SUCCESS' | 'FAILED' | null; // 交易动作状态
+    flowNodes?: {
+        nodeCode: string;
+        nodeName: string;
+        orderNo: number;
+        status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'SKIPPED';
+        startTime?: number | null;
+        endTime?: number | null;
+        durationMs?: number | null;
+        message?: string | null;
+    }[] | null;
+    currentNodeCode?: string | null;
+    flowFinished?: boolean | null;
 }
 
 // 新增：Prompt生成响应接口

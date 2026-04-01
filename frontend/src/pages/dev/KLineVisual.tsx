@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {KLineBar, KLineChart} from '../../components/charts/KLineChart';
+import LightweightCandlestickChart, {KLineBar} from '../../components/charts/LightweightCandlestickChart';
 
 const buildBars = (): KLineBar[] => {
     const start = 1700000000000;
@@ -28,15 +28,16 @@ const KLineVisual: React.FC = () => {
         <div data-testid="kline-visual-root" style={{padding: 16}}>
             <div style={{display: 'flex', gap: 16, flexWrap: 'wrap'}}>
                 <div style={{width: 920, height: 520, background: '#1f1f1f', border: '1px solid #333'}}>
-                    <KLineChart symbol="TEST-USDT" period="1m" data={bars}/>
+                    <LightweightCandlestickChart
+                        data={bars}
+                        height={520}
+                        timeFrame="1m"
+                    />
                 </div>
-                <div style={{width: 920, height: 520, background: '#ffffff', border: '1px solid #ddd'}}>
-                    <KLineChart symbol="TEST-USDT" period="1m" data={bars} theme="light"/>
-                </div>
+                {/* 注：LightweightCandlestickChart 目前仅支持暗色主题 */}
             </div>
         </div>
     );
 };
 
 export default KLineVisual;
-

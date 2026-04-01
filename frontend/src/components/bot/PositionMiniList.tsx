@@ -656,13 +656,34 @@ const PositionMiniList: React.FC<PositionMiniListProps> = ({apiKeyId, onDataLoad
         }
     ];
 
+    // 格式化订单方向和持仓方向
+    const formatSideAndPosSide = (side: string, posSide: string): { text: string, color: string } => {
+        // 推断posSide（当posSide为空时，根据side推断）
+        const inferredPosSide = posSide || (side === 'buy' ? 'long' : (side === 'sell' ? 'short' : 'net'));
+
+        if ('buy' === side && 'long' === inferredPosSide) {
+            // 买入开多 - 绿色
+            return { text: '买入开多', color: '#52c41a' };
+        } else if ('sell' === side && 'short' === inferredPosSide) {
+            // 卖出开空 - 红色
+            return { text: '卖出开空', color: '#ff4d4f' };
+        } else if ('sell' === side && 'long' === inferredPosSide) {
+            // 卖出平多 - 橙色
+            return { text: '卖出平多', color: '#faad14' };
+        } else if ('buy' === side && 'short' === inferredPosSide) {
+            // 买入平空 - 蓝色
+            return { text: '买入平空', color: '#1890ff' };
+        }
+        return { text: `${side} ${inferredPosSide}`, color: '#999' };
+    };
+
     // 委托订单表格列定义
     const orderColumns = [
         {
             title: '合约',
             dataIndex: 'instId',
             key: 'instId',
-            width: 140,
+            width: 110,
             render: (instId: string, record: OrderModel) => {
                 const isBuy = record.side === 'buy';
                 return (
@@ -680,10 +701,24 @@ const PositionMiniList: React.FC<PositionMiniListProps> = ({apiKeyId, onDataLoad
             }
         },
         {
+            title: '方向',
+            dataIndex: 'side',
+            key: 'direction',
+            width: 80,
+            render: (_: string, record: OrderModel) => {
+                const { text, color } = formatSideAndPosSide(record.side, record.posSide);
+                return (
+                    <Text style={{ color, fontSize: 12, fontWeight: 500 }}>
+                        {text}
+                    </Text>
+                );
+            }
+        },
+        {
             title: '数量',
             dataIndex: 'sz',
             key: 'sz',
-            width: 80,
+            width: 70,
             render: (sz: string) => (
                 <Text style={{color: '#d9d9d9', fontSize: 12}}>
                     {sz}
@@ -694,7 +729,7 @@ const PositionMiniList: React.FC<PositionMiniListProps> = ({apiKeyId, onDataLoad
             title: '价格',
             dataIndex: 'px',
             key: 'px',
-            width: 100,
+            width: 90,
             render: (px: string) => (
                 <Text style={{color: '#d9d9d9', fontSize: 12}}>
                     {px}

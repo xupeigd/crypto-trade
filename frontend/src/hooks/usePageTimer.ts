@@ -307,6 +307,24 @@ export const usePageTimer = (
         }
     }, [enabled, autoStart]);
 
+    // 组件卸载时自动清理定时器
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) {
+                if (timerType === 'interval') {
+                    window.clearInterval(timerRef.current);
+                } else {
+                    window.clearTimeout(timerRef.current);
+                }
+                timerRef.current = null;
+            }
+            if (retryTimeoutRef.current) {
+                window.clearTimeout(retryTimeoutRef.current);
+                retryTimeoutRef.current = null;
+            }
+        };
+    }, [timerType]);
+
     // 自动启动 - 简化逻辑
     useEffect(() => {
         if (autoStart && enabled && !isActive) {

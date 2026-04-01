@@ -64,6 +64,10 @@ const TradingForm: React.FC<TradingFormProps> = ({
     // 止盈止损加载状态
     const [isCalculatingProfitLoss, setIsCalculatingProfitLoss] = useState(false);
 
+    // 默认止盈止损百分比（基于3倍杠杆）
+    const DEFAULT_TAKE_PROFIT_PCT = parseFloat((0.8 / 3 * 100).toFixed(2)); // 26.67%
+    const DEFAULT_STOP_LOSS_PCT = parseFloat((0.6 / 3 * 100).toFixed(2));   // 20%
+
     // 处理合约变化时清除价格和预估信息，并重置止盈止损状态
     useEffect(() => {
         if (selectedInstrument) {
@@ -72,14 +76,15 @@ const TradingForm: React.FC<TradingFormProps> = ({
             setEstimatedQuantity(0); // 清除预估数量
             setEstimatedNotional(0); // 清除预估名义价值
 
-            // 重置止盈止损为默认状态（启用）
+            // 重置止盈止损为默认状态（启用），并设置默认百分比
             setTakeProfitEnabled(true);
             setStopLossEnabled(true);
-            // 清除之前的价格和百分比设置
+            // 使用默认公式设置百分比
+            setTakeProfitPct(DEFAULT_TAKE_PROFIT_PCT);
+            setStopLossPct(DEFAULT_STOP_LOSS_PCT);
+            // 清除之前的价格设置
             setTakeProfitPrice(null);
             setStopLossPrice(null);
-            setTakeProfitPct(null);
-            setStopLossPct(null);
             // 重置为百分比模式
             setUseTakeProfitPct(true);
             setUseStopLossPct(true);
@@ -88,7 +93,7 @@ const TradingForm: React.FC<TradingFormProps> = ({
             setHasManuallyEditedPrice(false);
             setIsUserEditing(false);
 
-            // 移除直接清除限价的逻辑，让价格变化监听来处理更新
+            // console.log(`[TradingForm] 合约切换: ${selectedInstrument}, 默认止盈=${DEFAULT_TAKE_PROFIT_PCT}%, 止损=${DEFAULT_STOP_LOSS_PCT}%`);
         } else {
             // 合约清空时，止盈止损也设为未选中状态
             setTakeProfitEnabled(false);
@@ -114,13 +119,10 @@ const TradingForm: React.FC<TradingFormProps> = ({
             const takeProfitPctCalculated = parseFloat((Math.abs(fourHourAvgChange) * 1.2).toFixed(2));
             const stopLossPctCalculated = parseFloat((Math.abs(fourHourAvgChange) * 1.5).toFixed(2));
 
-            // 移除localStorage限制,只要百分比为null或0就自动设置
-            if (takeProfitPct === null || takeProfitPct === 0) {
-                setTakeProfitPct(takeProfitPctCalculated);
-            }
-            if (stopLossPct === null || stopLossPct === 0) {
-                setStopLossPct(stopLossPctCalculated);
-            }
+            // 智能值覆盖默认值
+            setTakeProfitPct(takeProfitPctCalculated);
+            setStopLossPct(stopLossPctCalculated);
+            // console.log(`[TradingForm] 智能更新止盈止损: TP=${takeProfitPctCalculated}%, SL=${stopLossPctCalculated}% (基于4H平均: ${Math.abs(fourHourAvgChange).toFixed(2)}%)`);
 
             setIsCalculatingProfitLoss(false);
         }
@@ -459,7 +461,7 @@ const TradingForm: React.FC<TradingFormProps> = ({
     // 处理价格更新 - 使用节流优化
     const throttledPriceUpdate = useThrottle((instrumentId: string, price: number) => {
         if (instrumentId === selectedInstrument) {
-            console.log('收到价格更新:', instrumentId, price);
+            // console.log('收到价格更新:', instrumentId, price);
             setCurrentPrice(price);
             setCurrentMarkPrice(price); // 同时更新标记价格
         }
@@ -567,32 +569,32 @@ const TradingForm: React.FC<TradingFormProps> = ({
             );
 
             // 调试信息：显示最终传递给API的参数
-            console.log('=== 下单参数调试信息 ===');
-            console.log('合约:', selectedInstrument);
-            console.log('方向:', side, '(', direction, ')');
-            console.log('订单类型:', orderType);
-            console.log('数量:', selectedAmount);
-            console.log('杠杆:', 3);
-            console.log('限价:', orderType === 'limit' && limitPrice !== null ? limitPrice : '市价');
-            console.log('原始止盈设置:', {
-                enabled: takeProfitEnabled,
-                usePercentage: useTakeProfitPct,
-                percentage: takeProfitPct,
-                fixedPrice: takeProfitPrice
-            });
-            console.log('原始止损设置:', {
-                enabled: stopLossEnabled,
-                usePercentage: useStopLossPct,
-                percentage: stopLossPct,
-                fixedPrice: stopLossPrice
-            });
+            // console.log('=== 下单参数调试信息 ===');
+            // console.log('合约:', selectedInstrument);
+            // console.log('方向:', side, '(', direction, ')');
+            // console.log('订单类型:', orderType);
+            // console.log('数量:', selectedAmount);
+            // console.log('杠杆:', 3);
+            // console.log('限价:', orderType === 'limit' && limitPrice !== null ? limitPrice : '市价');
+            // console.log('原始止盈设置:', {
+            //     enabled: takeProfitEnabled,
+            //     usePercentage: useTakeProfitPct,
+            //     percentage: takeProfitPct,
+            //     fixedPrice: takeProfitPrice
+            // });
+            // console.log('原始止损设置:', {
+            //     enabled: stopLossEnabled,
+            //     usePercentage: useStopLossPct,
+            //     percentage: stopLossPct,
+            //     fixedPrice: stopLossPrice
+            // });
 
             // 强制调试：如果用户输入了百分比但useTakeProfitPct为false，强制修复
             let finalTakeProfitPrice = calculatedTakeProfitPrice;
             let finalStopLossPrice = calculatedStopLossPrice;
 
             if (takeProfitEnabled && takeProfitPct && takeProfitPct > 0 && !useTakeProfitPct) {
-                console.warn('检测到止盈百分比输入但模式未切换，强制修复');
+                // console.warn('检测到止盈百分比输入但模式未切换，强制修复');
                 setUseTakeProfitPct(true);
                 // 重新计算
                 finalTakeProfitPrice = await calculateTakeProfitPrice(
@@ -601,7 +603,7 @@ const TradingForm: React.FC<TradingFormProps> = ({
             }
 
             if (stopLossEnabled && stopLossPct && stopLossPct > 0 && !useStopLossPct) {
-                console.warn('检测到止损百分比输入但模式未切换，强制修复');
+                // console.warn('检测到止损百分比输入但模式未切换，强制修复');
                 setUseStopLossPct(true);
                 // 重新计算
                 finalStopLossPrice = await calculateStopLossPrice(
@@ -609,9 +611,9 @@ const TradingForm: React.FC<TradingFormProps> = ({
                 );
             }
 
-            console.log('计算后止盈价格:', finalTakeProfitPrice);
-            console.log('计算后止损价格:', finalStopLossPrice);
-            console.log('==========================');
+            // console.log('计算后止盈价格:', finalTakeProfitPrice);
+            // console.log('计算后止损价格:', finalStopLossPrice);
+            // console.log('==========================');
 
             const response = await tradingService.placeOrder({
                 apiKeyId: selectedApiKey!,
@@ -674,20 +676,20 @@ const TradingForm: React.FC<TradingFormProps> = ({
         side: 'buy' | 'sell',
         direction: 'long' | 'short'
     ): Promise<number | null> => {
-        console.log(`止盈价格计算开始: enabled=${enabled}, usePercentage=${usePercentage}, percentage=${percentage}, fixedPrice=${fixedPrice}, direction=${direction}`);
+        // console.log(`止盈价格计算开始: enabled=${enabled}, usePercentage=${usePercentage}, percentage=${percentage}, fixedPrice=${fixedPrice}, direction=${direction}`);
 
         if (!enabled) {
-            console.log('止盈未启用，返回null');
+            // console.log('止盈未启用，返回null');
             return null;
         }
 
         if (!usePercentage) {
-            console.log('使用固定止盈价格:', fixedPrice);
+            // console.log('使用固定止盈价格:', fixedPrice);
             return fixedPrice;
         }
 
         if (!percentage || percentage <= 0) {
-            console.log('百分比无效，返回固定价格:', fixedPrice);
+            // console.log('百分比无效，返回固定价格:', fixedPrice);
             return fixedPrice;
         }
 
@@ -697,27 +699,27 @@ const TradingForm: React.FC<TradingFormProps> = ({
                 throw new Error('未获取到实时价格，无法计算止盈价格。请等待价格数据加载完成后再试。');
             }
 
-            console.log('使用组件实时价格:', currentPrice, '合约:', selectedInstrument);
+            // console.log('使用组件实时价格:', currentPrice, '合约:', selectedInstrument);
 
             // 计算基准价格（限价单使用限价，市价单使用当前价格）
             const basePrice = orderType === 'limit' && limitPrice ? limitPrice : currentPrice;
-            console.log(`基准价格: ${basePrice} (订单类型: ${orderType}, 限价: ${limitPrice})`);
+            // console.log(`基准价格: ${basePrice} (订单类型: ${orderType}, 限价: ${limitPrice})`);
 
             // 止盈：开多时价格上涨，开空时价格下跌
             let multiplier;
-            console.log(`DEBUG: 计算前 - direction=${direction}, percentage=${percentage}, percentage/100=${percentage / 100}`);
+            // console.log(`DEBUG: 计算前 - direction=${direction}, percentage=${percentage}, percentage/100=${percentage / 100}`);
             if (direction === 'long') {
                 // 开多：止盈价格 = 基准价格 * (1 + 百分比)
                 multiplier = 1 + (percentage / 100);
-                console.log(`DEBUG: 开多止盈 - 基准价格=${basePrice}, multiplier=${multiplier}, 结果=${basePrice * multiplier}`);
+                // console.log(`DEBUG: 开多止盈 - 基准价格=${basePrice}, multiplier=${multiplier}, 结果=${basePrice * multiplier}`);
             } else {
                 // 开空：止盈价格 = 基准价格 * (1 - 百分比)
                 multiplier = 1 - (percentage / 100);
-                console.log(`DEBUG: 开空止盈 - 基准价格=${basePrice}, multiplier=${multiplier}, 结果=${basePrice * multiplier}`);
+                // console.log(`DEBUG: 开空止盈 - 基准价格=${basePrice}, multiplier=${multiplier}, 结果=${basePrice * multiplier}`);
             }
 
             const calculatedPrice = basePrice * multiplier;
-            console.log(`最终止盈价格计算: 方向=${direction}, 基准价格=${basePrice}, 百分比=${percentage}%, 计算价格=${calculatedPrice}`);
+            // console.log(`最终止盈价格计算: 方向=${direction}, 基准价格=${basePrice}, 百分比=${percentage}%, 计算价格=${calculatedPrice}`);
 
             return calculatedPrice;
         } catch (error) {
@@ -735,20 +737,20 @@ const TradingForm: React.FC<TradingFormProps> = ({
         side: 'buy' | 'sell',
         direction: 'long' | 'short'
     ): Promise<number | null> => {
-        console.log(`止损价格计算开始: enabled=${enabled}, usePercentage=${usePercentage}, percentage=${percentage}, fixedPrice=${fixedPrice}, direction=${direction}`);
+        // console.log(`止损价格计算开始: enabled=${enabled}, usePercentage=${usePercentage}, percentage=${percentage}, fixedPrice=${fixedPrice}, direction=${direction}`);
 
         if (!enabled) {
-            console.log('止损未启用，返回null');
+            // console.log('止损未启用，返回null');
             return null;
         }
 
         if (!usePercentage) {
-            console.log('使用固定止损价格:', fixedPrice);
+            // console.log('使用固定止损价格:', fixedPrice);
             return fixedPrice;
         }
 
         if (!percentage || percentage <= 0) {
-            console.log('百分比无效，返回固定价格:', fixedPrice);
+            // console.log('百分比无效，返回固定价格:', fixedPrice);
             return fixedPrice;
         }
 
@@ -758,26 +760,26 @@ const TradingForm: React.FC<TradingFormProps> = ({
                 throw new Error('未获取到实时价格，无法计算止损价格。请等待价格数据加载完成后再试。');
             }
 
-            console.log('使用组件实时价格:', currentPrice, '合约:', selectedInstrument);
+            // console.log('使用组件实时价格:', currentPrice, '合约:', selectedInstrument);
 
             // 计算基准价格（限价单使用限价，市价单使用当前价格）
             const basePrice = orderType === 'limit' && limitPrice ? limitPrice : currentPrice;
-            console.log(`基准价格: ${basePrice} (订单类型: ${orderType}, 限价: ${limitPrice})`);
+            // console.log(`基准价格: ${basePrice} (订单类型: ${orderType}, 限价: ${limitPrice})`);
 
             // 止损：开多时价格下跌，开空时价格上涨
             let multiplier;
             if (direction === 'long') {
                 // 开多：止损价格 = 基准价格 * (1 - 百分比)
                 multiplier = 1 - (percentage / 100);
-                console.log(`开多止损: 基准价格=${basePrice} * (1 - ${percentage / 100}) = ${basePrice * multiplier}`);
+                // console.log(`开多止损: 基准价格=${basePrice} * (1 - ${percentage / 100}) = ${basePrice * multiplier}`);
             } else {
                 // 开空：止损价格 = 基准价格 * (1 + 百分比)
                 multiplier = 1 + (percentage / 100);
-                console.log(`开空止损: 基准价格=${basePrice} * (1 + ${percentage / 100}) = ${basePrice * multiplier}`);
+                // console.log(`开空止损: 基准价格=${basePrice} * (1 + ${percentage / 100}) = ${basePrice * multiplier}`);
             }
 
             const calculatedPrice = basePrice * multiplier;
-            console.log(`最终止损价格计算: 方向=${direction}, 基准价格=${basePrice}, 百分比=${percentage}%, 计算价格=${calculatedPrice}`);
+            // console.log(`最终止损价格计算: 方向=${direction}, 基准价格=${basePrice}, 百分比=${percentage}%, 计算价格=${calculatedPrice}`);
 
             return calculatedPrice;
         } catch (error) {
@@ -929,7 +931,7 @@ const TradingForm: React.FC<TradingFormProps> = ({
                     )}
 
                     {/* 成本金额选择 */}
-                    <Form.Item label={<><Text strong>成本金额 (USDT)</Text></>}>
+                    <Form.Item label={<><Text strong>成本金额 (₮)</Text></>}>
                         <AmountSelector
                             selectedAmount={selectedAmount}
                             onAmountChange={setSelectedAmount}

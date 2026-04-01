@@ -83,6 +83,22 @@ const SystemManagement: React.FC = () => {
             countLabel: '个代理'
         },
         {
+            key: 'cex-proxy-bindings',
+            title: '交易所代理绑定',
+            description: '按交易所绑定代理服务器，CEX请求自动走绑定代理',
+            icon: <GlobalOutlined/>,
+            color: '#531dab',
+            path: '/system/cex-proxy-bindings'
+        },
+        {
+            key: 'freqtrade-config',
+            title: 'Freqtrade配置',
+            description: '配置Freqtrade启动模式、策略目录、API等',
+            icon: <SettingOutlined/>,
+            color: '#eb2f96',
+            path: '/system/freqtrade-config'
+        },
+        {
             key: 'tasks',
             title: '定时任务管理',
             description: '创建和管理定时任务，支持Cron表达式和多种触发方式',
@@ -253,6 +269,15 @@ const SystemManagement: React.FC = () => {
                     </Col>
                 </Row>
             </Card>
+
+            {/* 系统模块列表 */}
+            <Row gutter={[16, 16]}>
+                {systemModules.map(module => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={module.key}>
+                        <SystemModuleCard module={module}/>
+                    </Col>
+                ))}
+            </Row>
 
         </div>
     );

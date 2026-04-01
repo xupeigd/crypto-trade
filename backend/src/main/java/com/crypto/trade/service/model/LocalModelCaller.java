@@ -132,6 +132,14 @@ public class LocalModelCaller implements ModelCaller {
     }
 
     @Override
+    public String callWithMessagesAndTools(List<UnifiedModelFactory.Message> messages, AIModelConfig config,
+            List<UnifiedModelFactory.Tool> tools) throws UnifiedModelFactory.ModelCallException {
+        // 本地模型（Ollama）暂不支持Function Calling，回退到不带tools的调用
+        log.warn("本地模型不支持Function Calling，回退到普通调用");
+        return callWithMessages(messages, config);
+    }
+
+    @Override
     public CompletableFuture<String> callAsync(String prompt, AIModelConfig config) {
         return CompletableFuture.supplyAsync(() -> {
             try {

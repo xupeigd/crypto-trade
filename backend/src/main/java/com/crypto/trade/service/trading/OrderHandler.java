@@ -11,15 +11,15 @@ import com.crypto.trade.dto.cex.response.CexOperationResponse;
 import com.crypto.trade.dto.cex.response.CexOrderResponse;
 import com.crypto.trade.dto.common.PagedResponse;
 import com.crypto.trade.dto.common.TradingResult;
-import com.crypto.trade.entity.ApiKey;
-import com.crypto.trade.entity.CexTradingOrder;
-import com.crypto.trade.entity.RiskControlOrder;
-import com.crypto.trade.entity.TradingOrder;
+import com.crypto.trade.entity.*;
 import com.crypto.trade.repository.CexTradingOrderRepository;
 import com.crypto.trade.repository.TradingOrderRepository;
+import com.crypto.trade.service.DryRunPositionService;
+import com.crypto.trade.service.ExecutionModeResolver;
 import com.crypto.trade.service.RiskControlOrderService;
 import com.crypto.trade.service.cex.ApiKeyService;
 import com.crypto.trade.service.cex.UnifiedCexApiService;
+import com.crypto.trade.service.market.UnifiedPriceDataService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -57,6 +57,12 @@ public class OrderHandler {
     UnifiedCexApiService unifiedCexApiService;
     @Autowired
     AiTradingRiskControlConfig aiTradingRiskControlConfig;
+    @Autowired
+    ExecutionModeResolver executionModeResolver;
+    @Autowired
+    DryRunPositionService dryRunPositionService;
+    @Autowired
+    UnifiedPriceDataService unifiedPriceDataService;
 
     /**
      * 下单交易
@@ -75,24 +81,38 @@ public class OrderHandler {
                 return createRiskControlOrder(orderRequest);
             }
 
-            // 2. 获取API Key信息
+            // 2. 解析执行模式
+            ExecutionMode executionMode = executionModeResolver.resolve(
+                    orderRequest.getAgentId(),
+                    orderRequest.getRiskControlId()
+            );
+            log.info("执行模式解析结果: mode={}, agentId={}, riskControlId={}",
+                    executionMode, orderRequest.getAgentId(), orderRequest.getRiskControlId());
+
+            // 3. Dry Run模式处理
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                log.info("【Dry Run模式】模拟下单，不提交到交易所");
+                return handleDryRunOrder(orderRequest);
+            }
+
+            // 4. 获取API Key信息
             ApiKey apiKey = apiKeyService.getDecryptedKey(orderRequest.getApiKeyId());
             if (apiKey == null) {
                 log.error("API Key不存在 - ID: {}", orderRequest.getApiKeyId());
                 return TradingResult.failure("API Key不存在");
             }
 
-            // 3. 创建TradingOrder(业务意图) - 先创建系统订单
+            // 5. 创建TradingOrder(业务意图) - 先创建系统订单
             TradingOrder tradingOrder = createTradingOrder(orderRequest);
             log.info("系统订单创建成功 - UUID: {}, 状态: pending", tradingOrder.getOrderUuid());
 
-            // 4. 构建通用CEX订单请求(包含clOrdId)
+            // 6. 构建通用CEX订单请求(包含clOrdId)
             CexPlaceOrderRequest cexPlaceOrderRequest = buildCexPlaceOrderRequest(orderRequest, tradingOrder.getOrderUuid());
 
-            // 5. 调用通用CEX交易API下单 - 再执行交易
+            // 7. 调用通用CEX交易API下单 - 再执行交易
             CexOrderResponse cexOrderResponse = unifiedCexApiService.placeOrder(apiKey, cexPlaceOrderRequest);
 
-            // 6. 转换API响应为TradingResult
+            // 8. 转换API响应为TradingResult
             TradingResult tradingResult = convertToTradingResult(cexOrderResponse);
             if (!tradingResult.success) {
                 log.error("OKX API下单失败 - 错误信息: {}", tradingResult.message);
@@ -101,10 +121,10 @@ public class OrderHandler {
                 return TradingResult.failure(tradingResult.message);
             }
 
-            // 7. 创建CexTradingOrder(执行结果) - 记录CEX订单
+            // 9. 创建CexTradingOrder(执行结果) - 记录CEX订单
             CexTradingOrder cexOrder = createCexTradingOrder(orderRequest, tradingResult.orderId, tradingOrder.getOrderUuid());
 
-            // 8. 关联并更新TradingOrder状态
+            // 10. 关联并更新TradingOrder状态
             linkAndUpdateOrders(tradingOrder, cexOrder);
 
             log.info("=== OrderHandler下单流程完成 ===");
@@ -113,6 +133,127 @@ public class OrderHandler {
         } catch (Exception e) {
             log.error("OrderHandler下单失败", e);
             return TradingResult.failure("下单失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理Dry Run订单
+     * 创建模拟订单记录并更新模拟持仓
+     *
+     * @param orderRequest 订单请求
+     * @return 交易结果
+     */
+    @Transactional
+    protected TradingResult handleDryRunOrder(OrderRequest orderRequest) {
+        try {
+            // 1. 创建Dry Run订单记录
+            TradingOrder tradingOrder = createTradingOrder(orderRequest);
+            tradingOrder.setIsDryRun(true);
+            
+            // 判断订单类型
+            String orderType = orderRequest.getOrderType();
+            boolean isLimitOrder = "limit".equalsIgnoreCase(orderType);
+            
+            // 判断是开仓还是平仓
+            String side = orderRequest.getSide();
+            String posSide = determinePositionSide(orderRequest);
+            boolean isOpenPosition = ("buy".equalsIgnoreCase(side) && "long".equalsIgnoreCase(posSide))
+                    || ("sell".equalsIgnoreCase(side) && "short".equalsIgnoreCase(posSide));
+
+            // 获取API Key
+            ApiKey apiKey = apiKeyService.getDecryptedKey(orderRequest.getApiKeyId());
+            
+            // 获取价格
+            BigDecimal px = orderRequest.getPx();
+            if (px == null || px.compareTo(BigDecimal.ZERO) <= 0) {
+                // 市价单或价格为空，获取实时标记价格
+                px = unifiedPriceDataService.getMarkPrice(apiKey, orderRequest.getInstId());
+                if (px == null || px.compareTo(BigDecimal.ZERO) <= 0) {
+                    log.warn("【Dry Run】无法获取实时价格，使用0 - instId: {}", orderRequest.getInstId());
+                    px = BigDecimal.ZERO;
+                } else {
+                    log.info("【Dry Run】获取实时标记价格 - instId: {}, markPrice: {}", orderRequest.getInstId(), px);
+                }
+            }
+
+            // 获取资金费率（用于开仓时记录）
+            BigDecimal fundingRate = BigDecimal.ZERO;
+            try {
+                com.crypto.trade.dto.cex.model.CexFundingRate fundingRateInfo =
+                        unifiedPriceDataService.getFundingRate(apiKey, orderRequest.getInstId());
+                if (fundingRateInfo != null && fundingRateInfo.getFundingRate() != null) {
+                    fundingRate = fundingRateInfo.getFundingRate();
+                    log.info("【Dry Run】获取资金费率 - instId: {}, fundingRate: {}", orderRequest.getInstId(), fundingRate);
+                }
+            } catch (Exception e) {
+                log.warn("【Dry Run】获取资金费率失败，使用默认值0 - instId: {}, error: {}", orderRequest.getInstId(), e.getMessage());
+            }
+
+            // 限价单开仓：创建委托单
+            if (isLimitOrder && isOpenPosition) {
+                // 限价单：订单状态为 pending
+                tradingOrder.setOrderStatus("pending");
+                tradingOrderRepository.save(tradingOrder);
+                log.info("【Dry Run】限价单订单记录创建成功 - UUID: {}", tradingOrder.getOrderUuid());
+                
+                // 创建委托单
+                dryRunPositionService.createPendingOrder(
+                        orderRequest.getApiKeyId(),
+                        orderRequest.getInstId(),
+                        side,
+                        orderRequest.getSz(),
+                        orderRequest.getPx(), // 限价单使用委托价格
+                        orderRequest.getLever(),
+                        fundingRate,
+                        orderRequest.getTakeProfitPrice(),
+                        orderRequest.getStopLossPrice()
+                );
+                log.info("【Dry Run】限价委托单创建成功 - instId: {}, side: {}, posSide: {}, sz: {}, px: {}, tp: {}, sl: {}",
+                        orderRequest.getInstId(), side, posSide, orderRequest.getSz(), orderRequest.getPx(),
+                        orderRequest.getTakeProfitPrice(), orderRequest.getStopLossPrice());
+                
+                return TradingResult.success(tradingOrder.getOrderUuid(), "[Dry Run] 限价委托单创建成功，等待成交");
+            }
+
+            // 市价单或平仓：立即处理
+            tradingOrder.markAsSuccess();
+            tradingOrderRepository.save(tradingOrder);
+            log.info("【Dry Run】订单记录创建成功 - UUID: {}", tradingOrder.getOrderUuid());
+
+            if (isOpenPosition) {
+                // 市价开仓/加仓
+                dryRunPositionService.openPosition(
+                        orderRequest.getApiKeyId(),
+                        orderRequest.getInstId(),
+                        side,
+                        orderRequest.getSz(),
+                        px,
+                        orderRequest.getLever(),
+                        fundingRate,
+                        orderRequest.getTakeProfitPrice(),
+                        orderRequest.getStopLossPrice()
+                );
+                log.info("【Dry Run】开仓成功 - instId: {}, side: {}, posSide: {}, sz: {}, px: {}, fundingRate: {}, tp: {}, sl: {}",
+                        orderRequest.getInstId(), side, posSide, orderRequest.getSz(), px, fundingRate,
+                        orderRequest.getTakeProfitPrice(), orderRequest.getStopLossPrice());
+            } else {
+                // 平仓
+                dryRunPositionService.closePosition(
+                        orderRequest.getApiKeyId(),
+                        orderRequest.getInstId(),
+                        side,
+                        orderRequest.getSz()
+                );
+                log.info("【Dry Run】平仓成功 - instId: {}, side: {}, posSide: {}, sz: {}",
+                        orderRequest.getInstId(), side, posSide, orderRequest.getSz());
+            }
+
+            // 3. 返回成功结果
+            return TradingResult.success(tradingOrder.getOrderUuid(), "[Dry Run] 模拟下单成功");
+
+        } catch (Exception e) {
+            log.error("【Dry Run】模拟下单失败", e);
+            return TradingResult.failure("[Dry Run] 模拟下单失败: " + e.getMessage());
         }
     }
 

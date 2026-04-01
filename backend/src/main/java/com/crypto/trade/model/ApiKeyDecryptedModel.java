@@ -29,6 +29,11 @@ public class ApiKeyDecryptedModel {
     Long keyId;
 
     /**
+     * API Key名称标识
+     */
+    String keyName;
+
+    /**
      * CEX名称
      */
     String cexName;

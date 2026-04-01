@@ -81,11 +81,23 @@ const CexKeyList: React.FC = () => {
         setModalVisible(true);
     };
 
-    const handleEdit = (key: CexKeyModel) => {
+    const handleEdit = async (key: CexKeyModel) => {
         setEditingKey(key);
-        form.setFieldsValue(key);
         setStorageType(key.storageType);
         setIsLiveTrading(key.isLiveTrading || false);
+        
+        // 获取编辑用的密钥数据
+        // ENV存储：返回原始环境变量名
+        // DB存储：敏感字段返回null（前端留空，用户不填则不覆盖）
+        try {
+            const editData = await cexKeyService.getKeyForEdit(key.keyId!);
+            form.setFieldsValue(editData);
+        } catch (error) {
+            // 如果获取失败，仍用基本信息填充
+            form.setFieldsValue(key);
+            message.warning('获取密钥编辑数据失败，部分字段未回填');
+        }
+        
         setModalVisible(true);
     };
 
@@ -226,8 +238,15 @@ const CexKeyList: React.FC = () => {
 
     const columns = [
         {
+            title: '名称',
+            dataIndex: 'keyName',
+            key: 'keyName',
+            width: 120,
+            render: (keyName: string) => keyName || '-',
+        },
+        {
             title: '交易所',
-            dataIndex: 'cexName',
+            dataIndex: 'vendor',
             key: 'cexName',
             width: 100,
         },
@@ -386,6 +405,9 @@ const CexKeyList: React.FC = () => {
                     width={700}
                 >
                     <Descriptions bordered column={1} labelStyle={{width: '120px'}}>
+                        <Descriptions.Item label="名称">
+                            {selectedKeyForDetail.keyName || '-'}
+                        </Descriptions.Item>
                         <Descriptions.Item label="交易所">
                             {selectedKeyForDetail.cexName}
                         </Descriptions.Item>
@@ -514,6 +536,14 @@ const CexKeyList: React.FC = () => {
                     layout="vertical"
                     onFinish={handleSubmit}
                 >
+                    <Form.Item
+                        name="keyName"
+                        label="名称标识"
+                        extra="用于标识此API Key的用途，如：主账号API、测试账号API"
+                    >
+                        <Input placeholder="请输入API Key名称（可选）"/>
+                    </Form.Item>
+
                     <Form.Item
                         name="cexName"
                         label="交易所名称"

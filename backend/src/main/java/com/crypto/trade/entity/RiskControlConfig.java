@@ -57,6 +57,13 @@ public class RiskControlConfig {
     private TradingStyle defaultTradingStyle;
 
     /**
+     * 执行模式: LIVE/DRY_RUN, NULL表示使用全局配置
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "execution_mode", length = 20)
+    private ExecutionMode executionMode;
+
+    /**
      * 更新时间
      */
     @Column(name = "update_time")

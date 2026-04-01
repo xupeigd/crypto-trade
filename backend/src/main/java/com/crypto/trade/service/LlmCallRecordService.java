@@ -6,6 +6,8 @@ import com.crypto.trade.repository.ChatSessionRepository;
 import com.crypto.trade.repository.LlmCallRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -29,6 +31,7 @@ public class LlmCallRecordService {
 
     private final LlmCallRecordRepository llmCallRecordRepository;
     private final ChatSessionRepository chatSessionRepository;
+    private final CacheManager cacheManager;
 
 //    /**
 //     * 创建新的调用记录（调用开始时）
@@ -127,6 +130,7 @@ public class LlmCallRecordService {
 
         // 保存并返回
         LlmCallRecord saved = llmCallRecordRepository.save(record);
+        clearBotPromptCache();
         log.info("LLM调用记录已创建 - id: {}, callCount: {}, roundNumber: {}", saved.getId(), callCount, roundNumber);
 
         return saved;
@@ -177,6 +181,7 @@ public class LlmCallRecordService {
 
         // 保存并返回
         LlmCallRecord saved = llmCallRecordRepository.save(record);
+        clearBotPromptCache();
         log.info("LLM调用记录(Long sessionId)已创建 - id: {}, callCount: {}, roundNumber: {}", saved.getId(), callCount, roundNumber);
 
         return saved;
@@ -243,6 +248,7 @@ public class LlmCallRecordService {
         record.markAsSuccess();
 
         llmCallRecordRepository.save(record);
+        clearBotPromptCache();
         log.debug("LLM调用记录已更新为成功 - recordId: {}, processingTime: {}ms",
                 recordId, record.getProcessingTimeMs());
     }
@@ -394,7 +400,80 @@ public class LlmCallRecordService {
         record.markAsFailed(errorMessage);
 
         llmCallRecordRepository.save(record);
+        clearBotPromptCache();
         log.debug("LLM调用记录已更新为失败 - recordId: {}", recordId);
+    }
+
+    /**
+     * 更新调用记录的用户消息ID
+     *
+     * @param recordId      记录ID
+     * @param userMessageId 用户消息ID
+     */
+    public void updateUserMessageId(Long recordId, Long userMessageId) {
+        log.debug("更新LLM调用记录的用户消息ID - recordId: {}, userMessageId: {}", recordId, userMessageId);
+
+        Optional<LlmCallRecord> recordOpt = llmCallRecordRepository.findById(recordId);
+        if (recordOpt.isEmpty()) {
+            log.error("LLM调用记录不存在 - recordId: {}", recordId);
+            return;
+        }
+
+        LlmCallRecord record = recordOpt.get();
+        record.setUserMessageId(userMessageId);
+
+        llmCallRecordRepository.save(record);
+        log.debug("LLM调用记录的用户消息ID已更新 - recordId: {}, userMessageId: {}", recordId, userMessageId);
+    }
+
+    /**
+     * 更新调用记录的助手消息ID
+     *
+     * @param recordId          记录ID
+     * @param assistantMessageId 助手消息ID
+     */
+    public void updateAssistantMessageId(Long recordId, Long assistantMessageId) {
+        log.debug("更新LLM调用记录的助手消息ID - recordId: {}, assistantMessageId: {}", recordId, assistantMessageId);
+
+        Optional<LlmCallRecord> recordOpt = llmCallRecordRepository.findById(recordId);
+        if (recordOpt.isEmpty()) {
+            log.error("LLM调用记录不存在 - recordId: {}", recordId);
+            return;
+        }
+
+        LlmCallRecord record = recordOpt.get();
+        record.setAssistantMessageId(assistantMessageId);
+
+        llmCallRecordRepository.save(record);
+        log.debug("LLM调用记录的助手消息ID已更新 - recordId: {}, assistantMessageId: {}", recordId, assistantMessageId);
+    }
+
+    public void updateFlowNodesJson(Long recordId, String flowNodesJson) {
+        Optional<LlmCallRecord> recordOpt = llmCallRecordRepository.findById(recordId);
+        if (recordOpt.isEmpty()) {
+            log.error("LLM调用记录不存在 - recordId: {}", recordId);
+            return;
+        }
+        LlmCallRecord record = recordOpt.get();
+        record.setFlowNodesJson(flowNodesJson);
+        llmCallRecordRepository.save(record);
+        clearBotPromptCache();
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+    public void updateFlowNodesJsonInNewTransaction(Long recordId, String flowNodesJson) {
+        updateFlowNodesJson(recordId, flowNodesJson);
+    }
+
+    private void clearBotPromptCache() {
+        try {
+            Cache cache = cacheManager.getCache("botPrompts");
+            if (cache != null) {
+                cache.clear();
+            }
+        } catch (Exception e) {
+            log.warn("清理botPrompts缓存失败", e);
+        }
     }
 
     /**

@@ -66,6 +66,11 @@ public class PendingOrdersPromptProcessor
             // 获取委托订单数据
             List<OrderModel> pendingOrders = getPendingOrders(context);
 
+            // 缓存到context，供其他处理器使用（如PendingOrdersKlinePromptProcessor）
+            if (pendingOrders != null) {
+                context.setCustomData("pendingOrders", pendingOrders);
+            }
+
             String content;
             if (pendingOrders == null || pendingOrders.isEmpty()) {
                 content = "\n\n当前无委托订单";
@@ -181,22 +186,15 @@ public class PendingOrdersPromptProcessor
      */
     private String getChineseOrderType(String ordType) {
         if (!StringUtils.hasText(ordType)) return "未知";
-        switch (ordType.toLowerCase()) {
-            case "market":
-                return "市价";
-            case "limit":
-                return "限价";
-            case "post_only":
-                return "只做maker";
-            case "fok":
-                return "全部成交或撤销";
-            case "ioc":
-                return "立即成交并撤销";
-            case "optimal_limit_ioc":
-                return "市价委托";
-            default:
-                return ordType;
-        }
+        return switch (ordType.toLowerCase()) {
+            case "market" -> "市价";
+            case "limit" -> "限价";
+            case "post_only" -> "只做maker";
+            case "fok" -> "全部成交或撤销";
+            case "ioc" -> "立即成交并撤销";
+            case "optimal_limit_ioc" -> "市价委托";
+            default -> ordType;
+        };
     }
 
     /**

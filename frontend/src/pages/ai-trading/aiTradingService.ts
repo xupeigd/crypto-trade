@@ -5,10 +5,13 @@ import {
     CurrentModeResponse,
     CurrentTradingStyleResponse,
     DateRangeParams,
+    ExecutionMode,
     HistoryQueryParams,
     ResetRequest,
     RiskControlInfo,
     RiskModeHistory,
+    SetExecutionModeRequest,
+    SetExecutionModeResponse,
     SetRiskModeRequest,
     SetRiskModeResponse,
     SetTradingStyleRequest,
@@ -386,6 +389,41 @@ export const aiTradingUtils = {
 
         const response = await api.get('/risk-control/trading-style/history/today');
         return response.data;
+    },
+
+    // ========== 执行模式相关API方法 ==========
+
+    /**
+     * 获取当前执行模式
+     */
+    getCurrentExecutionMode: async (): Promise<ExecutionMode> => {
+        const response = await api.get<ApiResponse<ExecutionMode>>('/risk-control/execution-mode');
+        if (response.data && response.data.success && response.data.data) {
+            return response.data.data;
+        }
+        throw new Error('获取执行模式失败');
+    },
+
+    /**
+     * 设置执行模式
+     */
+    setExecutionMode: async (request: SetExecutionModeRequest): Promise<SetExecutionModeResponse> => {
+        const response = await api.post<ApiResponse<string>>('/risk-control/execution-mode', request);
+        return {
+            success: response.data?.success ?? true,
+            message: response.data?.message ?? '执行模式设置成功'
+        };
+    },
+
+    /**
+     * 重置执行模式为全局配置
+     */
+    resetExecutionMode: async (request: ResetRequest): Promise<SetExecutionModeResponse> => {
+        const response = await api.post<ApiResponse<string>>('/risk-control/execution-mode/reset', request);
+        return {
+            success: response.data?.success ?? true,
+            message: response.data?.message ?? '执行模式已重置为全局配置'
+        };
     }
 };
 

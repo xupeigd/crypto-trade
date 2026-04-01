@@ -29,10 +29,11 @@ public class ChatController {
      * 获取用户会话列表
      */
     @GetMapping("/sessions")
-    public ApiResponse<List<ChatSessionModel>> getUserSessions(@RequestParam(defaultValue = "default") String userId) {
+    public ApiResponse<List<ChatSessionModel>> getUserSessions(@RequestParam(defaultValue = "default") String userId,
+                                                               @RequestParam(required = false) Long agentId) {
         try {
-            log.debug("获取用户会话列表 - userId: {}", userId);
-            List<ChatSessionModel> sessions = chatService.getUserSessionsModel(userId);
+            log.debug("获取用户会话列表 - userId: {}, agentId: {}", userId, agentId);
+            List<ChatSessionModel> sessions = chatService.getUserSessionsModel(userId, agentId);
             log.debug("获取用户会话列表成功 - userId: {}, 会话数量: {}", userId, sessions.size());
             return ApiResponse.ok(sessions);
         } catch (Exception e) {
@@ -46,14 +47,15 @@ public class ChatController {
      */
     @PostMapping("/sessions")
     public ApiResponse<ChatSessionModel> createNewSession(@RequestParam(defaultValue = "default") String userId,
-                                                          @RequestParam(required = false) String sessionName) {
+                                                          @RequestParam(required = false) String sessionName,
+                                                          @RequestParam(required = false) Long agentId) {
         try {
-            log.debug("创建新会话 - userId: {}, sessionName: {}", userId, sessionName);
-            ChatSessionModel session = chatService.createSessionModel(sessionName, userId);
+            log.debug("创建新会话 - userId: {}, sessionName: {}, agentId: {}", userId, sessionName, agentId);
+            ChatSessionModel session = chatService.createSessionModel(sessionName, userId, agentId);
             log.debug("创建新会话成功 - userId: {}, sessionId: {}", userId, session.getSessionId());
             return ApiResponse.ok(session);
         } catch (Exception e) {
-            log.error("创建新会话失败 - userId: {}, sessionName: {}, error: {}", userId, sessionName, e.getMessage(), e);
+            log.error("创建新会话失败 - userId: {}, sessionName: {}, agentId: {}, error: {}", userId, sessionName, agentId, e.getMessage(), e);
             return ApiResponse.fail("创建会话失败: " + e.getMessage());
         }
     }
@@ -107,15 +109,16 @@ public class ChatController {
                 userId = "default";
             }
 
-            log.debug("发送消息 - sessionId: {}, userId: {}, message长度: {}", request.getSessionId(), userId,
-                    null != request.getMessage() ? request.getMessage().length() : 0);
+            log.debug("发送消息 - sessionId: {}, userId: {}, message长度: {}, systemPrompt: {}", request.getSessionId(), userId,
+                    null != request.getMessage() ? request.getMessage().length() : 0,
+                    null != request.getSystemPrompt() ? "已设置" : "未设置");
 
             // 验证消息内容
             if (null == request.getMessage() || request.getMessage().trim().isEmpty()) {
                 return ApiResponse.fail("消息内容不能为空");
             }
 
-            SendMessageResponseModel response = chatService.sendMessageModel(request.getSessionId(), request.getMessage(), userId);
+            SendMessageResponseModel response = chatService.sendMessageModel(request.getSessionId(), request.getMessage(), userId, request.getSystemPrompt());
             if (response.isSuccess()) {
                 log.debug("发送消息成功 - sessionId: {}, messageId: {}", response.getSessionId(), response.getMessageId());
                 return ApiResponse.ok(response);

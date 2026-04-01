@@ -1,7 +1,8 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Modal, Spin, Typography, Segmented, Checkbox} from 'antd';
 import {CandlestickData, COLORS} from '../../pages/trading/components/CandlestickChart';
-import {klineBarsFromCandles, KLineChart} from '../charts/KLineChart';
+import {klineBarsFromCandles} from '../charts/KLineChart';
+import LightweightCandlestickChart from '../charts/LightweightCandlestickChart';
 import {tradingService, TechnicalIndicatorData} from '../../services/tradingService';
 import type {TimeFrame} from '../../hooks/useChartState';
 
@@ -12,6 +13,73 @@ const normalizeTimestampMs = (value: unknown): number | undefined => {
     if (!Number.isFinite(num) || num <= 0) return undefined;
     if (num < 1_000_000_000_000) return Math.floor(num * 1000);
     return Math.floor(num);
+};
+
+const transformIndicatorsForChart = (rawIndicators: Record<string, any> | undefined) => {
+    if (!rawIndicators) return undefined;
+
+    const result: Record<string, Array<{
+        time: number;
+        value?: number;
+        upper?: number;
+        middle?: number;
+        lower?: number;
+        diff?: number;
+        signal?: number;
+        histogram?: number;
+        k?: number;
+        d?: number;
+        j?: number;
+    }>> = {};
+
+    Object.entries(rawIndicators).forEach(([key, indicator]) => {
+        const values = indicator?.data?.values || indicator?.values;
+        if (!values || !Array.isArray(values)) return;
+
+        values.forEach((v: any) => {
+            const multiPeriod = v.multiPeriodValues;
+            if (!multiPeriod) return;
+
+            Object.entries(multiPeriod).forEach(([periodKey, periodData]: [string, any]) => {
+                const seriesKey = `${key}_${periodKey}`;
+
+                if (key === 'MACD') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        diff: periodData.diff,
+                        signal: periodData.dea,
+                        histogram: periodData.macd,
+                    });
+                } else if (key === 'BOLL') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        upper: periodData.upper,
+                        middle: periodData.middle,
+                        lower: periodData.lower,
+                    });
+                } else if (key === 'KDJ') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        k: periodData.k,
+                        d: periodData.d,
+                        j: periodData.j,
+                    });
+                } else {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        value: periodData,
+                    });
+                }
+            });
+        });
+    });
+
+    Object.values(result).forEach(arr => arr.sort((a, b) => a.time - b.time));
+    return result;
 };
 
 interface HistoryPositionChartModalProps {
@@ -70,6 +138,8 @@ const HistoryPositionChartModal: React.FC<HistoryPositionChartModalProps> = ({
         /** KDJ 21: 随机指标，周期 21 */
         'KDJ_21': true,
     });
+    const [showAvgPx, setShowAvgPx] = useState<boolean>(true);
+    const [showClosePx, setShowClosePx] = useState<boolean>(true);
 
     // 解析开仓价和平仓价
     const openPrice = position?.openAvgPx !== undefined && position?.openAvgPx !== null ? Number(position.openAvgPx) : undefined;
@@ -468,17 +538,22 @@ const HistoryPositionChartModal: React.FC<HistoryPositionChartModalProps> = ({
                         />
                         <Segmented
                             size="small"
-                            value={reverseOrder ? 'left' : 'right'}
+                            value={showAvgPx ? 'show' : 'hide'}
                             options={[
-                                {label: '←', value: 'left', disabled: reverseOrder},
-                                {label: '→', value: 'right', disabled: !reverseOrder},
+                                {label: '开仓', value: 'show'},
+                                {label: 'Hide', value: 'hide'},
                             ]}
-                            onChange={(value) => {
-                                const next = value as 'left' | 'right';
-                                const nextReverseOrder = next === 'left';
-                                setReverseOrder(nextReverseOrder);
-                                fetchChartData({timeframe: manualTimeFrame ?? (currentTimeFrame as TimeFrame), limit: currentLimit, reverseOrder: nextReverseOrder});
-                            }}
+                            onChange={(value) => setShowAvgPx(value === 'show')}
+                            style={{marginLeft: 8}}
+                        />
+                        <Segmented
+                            size="small"
+                            value={showClosePx ? 'show' : 'hide'}
+                            options={[
+                                {label: '平仓', value: 'show'},
+                                {label: 'Hide', value: 'hide'},
+                            ]}
+                            onChange={(value) => setShowClosePx(value === 'show')}
                             style={{marginLeft: 8}}
                         />
                     </div>
@@ -505,20 +580,24 @@ const HistoryPositionChartModal: React.FC<HistoryPositionChartModalProps> = ({
             ) : chartData.length > 0 && position ? (
                 <div style={{padding: 16, display: 'flex', gap: 16}}>
                     <div style={{width: 1100, height: 560}}>
-                        <KLineChart
-                            symbol={position.instId}
-                            period={currentTimeFrame as any}
+                        <LightweightCandlestickChart
                             data={bars}
-                            reverseOrder={reverseOrder}
-                            indicators={indicators}
+                            height={560}
+                            maxVisibleBars={currentLimit}
+                            timeFrame={currentTimeFrame}
+                            indicators={transformIndicatorsForChart(indicators)}
                             visibleIndicators={visibleIndicators}
                             referenceLines={{
                                 avgPx: openPrice,
                                 closePx: closePrice,
                                 cTime: currentAlignedOpenTime,
                                 uTime: currentAlignedCloseTime,
-                                profitLossStatus: profitLossStatus
+                                posSide: position?.posSide,
                             }}
+                            showEntryLine={false}
+                            lockRightEdge={true}
+                            showAvgPx={showAvgPx}
+                            showClosePx={showClosePx}
                         />
                     </div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 12px 12px 0', backgroundColor: '#1f1f1f', borderLeft: '1px solid #303030', minWidth: 140}}>

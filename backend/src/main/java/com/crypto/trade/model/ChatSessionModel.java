@@ -47,6 +47,11 @@ public class ChatSessionModel {
      */
     String modelName;
 
+    /**
+     * 智能体ID（如果有）
+     */
+    Long agentId;
+
 
     /**
      * 创建时间
@@ -87,6 +92,7 @@ public class ChatSessionModel {
                 .userId(entity.getUserId())
                 .status(entity.getStatus())
                 .modelName(entity.getModelName())
+                .agentId(entity.getAgentId())
                 .createdTime(createdTime)
                 .updatedTime(updatedTime)
                 .build();

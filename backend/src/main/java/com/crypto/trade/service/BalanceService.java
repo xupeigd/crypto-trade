@@ -64,7 +64,9 @@ public class BalanceService {
     public BalanceSummary getBalanceSummary(String cexName) {
         List<CexBalance> balances = getLatestBalancesByCex(cexName);
         if (balances.isEmpty()) {
-            return new BalanceSummary();
+            BalanceSummary emptySummary = new BalanceSummary();
+            emptySummary.setCexName(cexName);
+            return emptySummary;
         }
         // 计算汇总数据
         BigDecimal totalUsdValue = BigDecimal.ZERO;
@@ -73,8 +75,8 @@ public class BalanceService {
         Map<String, BigDecimal> currencyDistribution = new HashMap<>();
         for (CexBalance balance : balances) {
             totalUsdValue = totalUsdValue.add(balance.getUsdValue() != null ? balance.getUsdValue() : BigDecimal.ZERO);
-            totalAvailableBalance = totalAvailableBalance.add(balance.getAvailableBalance());
-            totalLockedBalance = totalLockedBalance.add(balance.getLockedBalance());
+            totalAvailableBalance = totalAvailableBalance.add(balance.getAvailableBalance() != null ? balance.getAvailableBalance() : BigDecimal.ZERO);
+            totalLockedBalance = totalLockedBalance.add(balance.getLockedBalance() != null ? balance.getLockedBalance() : BigDecimal.ZERO);
             if (balance.getUsdValue() != null && balance.getUsdValue().compareTo(BigDecimal.ZERO) > 0) {
                 currencyDistribution.merge(balance.getCurrency(), balance.getUsdValue(), BigDecimal::add);
             }
@@ -98,6 +100,9 @@ public class BalanceService {
      */
     public List<String> getActiveCexNames() {
         List<String> cexNames = cexBalanceRepository.findDistinctCexNames();
+        if (cexNames == null) {
+            cexNames = new ArrayList<>();
+        }
         // 在列表开头添加"全部"选项
         cexNames.add(0, "ALL");
         return cexNames;

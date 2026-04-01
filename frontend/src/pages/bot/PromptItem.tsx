@@ -646,7 +646,7 @@ const PromptItem: React.FC<PromptItemProps> = ({
                         if (amount === '-' || amount === undefined || amount === null) {
                             return '-';
                         }
-                        return `${amount} USDT`;
+                        return `${amount} ₮`;
                     },
                 },
                 {
@@ -2041,6 +2041,7 @@ const PromptItem: React.FC<PromptItemProps> = ({
                                     <SegmentEditor
                                         segments={parsedSegments}
                                         readOnly={true}
+                                        apiKeyId={item.apiKeyId}
                                     />
                                 ) : (
                                     <div style={{
@@ -2144,6 +2145,7 @@ const PromptItem: React.FC<PromptItemProps> = ({
                                             <SegmentEditor
                                                 segments={item.responseSegments}
                                                 readOnly={true}
+                                                apiKeyId={item.apiKeyId}
                                             />
                                         ) : (
                                             <div style={{

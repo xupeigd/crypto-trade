@@ -113,13 +113,26 @@ const ProxyList: React.FC = () => {
         setTestingConnection(proxyId);
         try {
             const result = await proxyService.testConnection(proxyId);
+            const content = `服务端测试结果: ${result?.message || (result?.success ? '代理连接测试成功' : '代理连接测试失败，未知错误')}`;
             if (result?.success) {
-                message.success('代理连接测试成功');
+                message.open({
+                    type: 'success',
+                    content: <span style={{whiteSpace: 'pre-wrap', wordBreak: 'break-all'}}>{content}</span>,
+                    duration: 5
+                });
             } else {
-                message.error(`代理连接测试失败: ${result?.message || '未知错误'}`);
+                message.open({
+                    type: 'error',
+                    content: <span style={{whiteSpace: 'pre-wrap', wordBreak: 'break-all'}}>{content}</span>,
+                    duration: 5
+                });
             }
         } catch (error) {
-            message.error('代理连接测试失败');
+            message.open({
+                type: 'error',
+                content: <span style={{whiteSpace: 'pre-wrap', wordBreak: 'break-all'}}>服务端测试结果: 代理连接测试失败</span>,
+                duration: 5
+            });
         } finally {
             setTestingConnection(null);
         }

@@ -1,7 +1,7 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Card, Spin} from 'antd';
 import {tradingService} from '../../../services/tradingService';
-import {KLineBar, KLineChart} from '../../../components/charts/KLineChart';
+import {KLineBar, LightweightCandlestickChart} from '../../../components/charts/LightweightCandlestickChart';
 
 interface ChartContainerSimpleProps {
     instId: string;
@@ -34,9 +34,9 @@ const ChartContainerSimple: React.FC<ChartContainerSimpleProps> = ({instId, apiK
             setError(null);
 
             try {
-                console.log('Simple ChartContainer: 开始获取K线数据:', testInstId);
+                // console.log('Simple ChartContainer: 开始获取K线数据:', testInstId);
                 const candles = await tradingService.getMarkPriceCandles(testInstId, apiKeyId, '1m', 240);
-                console.log('Simple ChartContainer: 获取到K线数据:', candles);
+                // console.log('Simple ChartContainer: 获取到K线数据:', candles);
 
                 if (candles && candles.length > 0) {
                     // 按时间戳升序排列，确保最新的数据在右边
@@ -46,13 +46,13 @@ const ChartContainerSimple: React.FC<ChartContainerSimpleProps> = ({instId, apiK
                         return timeA - timeB; // 升序排列，从早到晚
                     });
                     setData(sortedCandles);
-                    console.log('Simple ChartContainer: 数据设置成功，数据长度:', sortedCandles.length);
-                    console.log('Simple ChartContainer: 时间范围:', {
-                        earliest: new Date(sortedCandles[0].timestamp).toLocaleString(),
-                        latest: new Date(sortedCandles[sortedCandles.length - 1].timestamp).toLocaleString()
-                    });
+                    // console.log('Simple ChartContainer: 数据设置成功，数据长度:', sortedCandles.length);
+                    // console.log('Simple ChartContainer: 时间范围:', {
+                    //     earliest: new Date(sortedCandles[0].timestamp).toLocaleString(),
+                    //     latest: new Date(sortedCandles[sortedCandles.length - 1].timestamp).toLocaleString()
+                    // });
                 } else {
-                    console.log('Simple ChartContainer: K线数据为空:', candles);
+                    // console.log('Simple ChartContainer: K线数据为空:', candles);
                     setError('未获取到数据');
                 }
             } catch (err) {
@@ -80,10 +80,10 @@ const ChartContainerSimple: React.FC<ChartContainerSimpleProps> = ({instId, apiK
                 )}
                 {data.length > 0 && (
                     <div style={{width: '100%', height: 420}}>
-                        <KLineChart
-                            symbol={instId}
-                            period="1m"
+                        <LightweightCandlestickChart
                             data={bars}
+                            height={420}
+                            timeFrame="1m"
                             loading={loading}
                             markPrice={markPrice}
                         />

@@ -17,10 +17,7 @@ import com.crypto.trade.dto.common.TradingResult;
 import com.crypto.trade.dto.market.InstrumentOverviewDTO;
 import com.crypto.trade.dto.market.UnifiedChartDataRequest;
 import com.crypto.trade.dto.market.UnifiedChartDataResponse;
-import com.crypto.trade.entity.ApiKey;
-import com.crypto.trade.entity.CexTradingOrder;
-import com.crypto.trade.entity.PositionSnapshot;
-import com.crypto.trade.entity.TradingOrder;
+import com.crypto.trade.entity.*;
 import com.crypto.trade.model.*;
 import com.crypto.trade.model.ctm.ApiResponse;
 import com.crypto.trade.model.request.*;
@@ -42,6 +39,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -87,7 +86,13 @@ public class TradingController {
     @Autowired
     UnifiedMarketTickerService unifiedMarketTickerService;
     @Autowired
+    CommonTechnicalIndicatorService commonTechnicalIndicatorService;
+    @Autowired
     PositionSnapshotPersistenceService positionSnapshotPersistenceService;
+    @Resource
+    ExecutionModeResolver executionModeResolver;
+    @Resource
+    DryRunPositionService dryRunPositionService;
 
     /**
      * 下单接口
@@ -170,7 +175,28 @@ public class TradingController {
             if (null == cancelRequest || !StringUtils.hasText(cancelRequest.getInstId())) {
                 return ApiResponse.fail("合约品种不能为空");
             }
-            // 调用交易服务撤单
+
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(apiKeyId);
+            log.info("撤单请求 - keyId: {}, orderId: {}, executionMode: {}", apiKeyId, orderId, executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：取消模拟委托单
+                try {
+                    Long positionId = Long.parseLong(orderId);
+                    boolean success = dryRunPositionService.cancelPendingOrderById(positionId);
+                    if (success) {
+                        log.info("【Dry Run】撤单成功 - positionId: {}", positionId);
+                        return ApiResponse.ok(TradingResult.success(orderId, "[Dry Run] 撤单成功"));
+                    } else {
+                        return ApiResponse.fail("[Dry Run] 撤单失败：找不到委托单或委托单已成交/已取消");
+                    }
+                } catch (NumberFormatException e) {
+                    return ApiResponse.fail("[Dry Run] 无效的订单ID格式");
+                }
+            }
+
+            // Live 模式：调用交易服务撤单
             TradingResult result = tradingOrderService.cancelOrder(apiKeyId, cancelRequest.getInstId(), orderId);
             if (result.getSuccess()) {
                 TradingResult response = TradingResult.success(result.getOrderId(), result.getMessage())
@@ -221,12 +247,49 @@ public class TradingController {
     @GetMapping("/orders/{apiKeyId}/pending")
     public ApiResponse<List<OrderModel>> getPendingOrders(@PathVariable Long apiKeyId) {
         try {
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(apiKeyId);
+            log.debug("获取当前委托 - keyId: {}, executionMode: {}", apiKeyId, executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：返回模拟委托单（限价单）
+                List<DryRunPosition> pendingPositions = dryRunPositionService.getPendingPositions(apiKeyId);
+                List<OrderModel> orders = convertDryRunPendingToOrderModel(pendingPositions);
+                log.info("【Dry Run】返回模拟委托 - keyId: {}, 结果数: {}", apiKeyId, orders.size());
+                return ApiResponse.ok(orders);
+            }
+
+            // Live 模式：从交易所获取真实委托订单
             List<OrderModel> orders = tradingOrderService.getPendingOrders(apiKeyId, true);
             return ApiResponse.ok(orders);
         } catch (Exception e) {
             log.error("获取当前委托订单失败", e);
             return ApiResponse.fail("获取当前委托订单失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 将 DryRunPosition (pending) 转换为 OrderModel
+     */
+    private List<OrderModel> convertDryRunPendingToOrderModel(List<DryRunPosition> pendingPositions) {
+        return pendingPositions.stream().map(pos -> {
+            OrderModel model = new OrderModel();
+            model.setOrdId(String.valueOf(pos.getId()));
+            model.setInstId(pos.getInstId());
+            model.setOrdType("limit");
+            model.setState("live");  // 前端期望 "live" 状态才显示取消按钮
+            model.setSide("long".equalsIgnoreCase(pos.getPosSide()) ? "buy" : "sell");
+            model.setPosSide(pos.getPosSide());
+            model.setSz(pos.getPendingSz());
+            model.setPx(pos.getPendingPx());
+            model.setLever(pos.getLever());
+            model.setTpTriggerPx(pos.getTakeProfitPrice());
+            model.setSlTriggerPx(pos.getStopLossPrice());
+            if (pos.getCreatedTime() != null) {
+                model.setCTime(pos.getCreatedTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
+            }
+            return model;
+        }).collect(Collectors.toList());
     }
 
     /**
@@ -476,7 +539,7 @@ public class TradingController {
     private ActiveApiKeyDTO convertToActiveApiKeyDTO(ApiKey apiKey) {
         return ActiveApiKeyDTO.builder()
                 .keyId(apiKey.getKeyId())
-                .keyName(apiKey.getCexName()) // 使用cexName作为keyName
+                .keyName(apiKey.getKeyName()) // 使用cexName作为keyName
                 .accessKey(maskApiKey(apiKey.getAccessKey()))
                 .vendor(apiKey.getCexName()) // 使用cexName作为vendor
                 .status(apiKey.getStatus())
@@ -509,7 +572,7 @@ public class TradingController {
                                                                             @RequestParam Long apiKeyId,
                                                                             @RequestParam(defaultValue = "volume") String orderBy) {
         try {
-            log.info("获取TopN永续合约 - count: {}, apiKeyId: {}", count, apiKeyId);
+            log.debug("获取TopN永续合约 - count: {}, apiKeyId: {}", count, apiKeyId);
 
             // 使用新的UnifiedMarketTickerService获取TopN合约数据
             List<MarketTickerDto> marketTickers = unifiedMarketTickerService.getTopNContracts(count, orderBy, apiKeyId);
@@ -519,7 +582,7 @@ public class TradingController {
                     .map(this::convertToInstrumentBasicInfo)
                     .collect(Collectors.toList());
 
-            log.info("成功获取TopN永续合约 - count: {}, apiKeyId: {}, 返回{}条记录", count, apiKeyId, instruments.size());
+            log.debug("成功获取TopN永续合约 - count: {}, apiKeyId: {}, 返回{}条记录", count, apiKeyId, instruments.size());
             return ApiResponse.ok(instruments);
         } catch (Exception e) {
             log.error("获取TopN永续合约失败 - count: {}, apiKeyId: {}", count, apiKeyId, e);
@@ -660,7 +723,9 @@ public class TradingController {
 
     /**
      * 获取实时仓位数据
-     * 直接从OKX API获取活跃仓位信息
+     * 根据执行模式返回不同数据源：
+     * - Dry Run 模式：返回数据库中的模拟持仓
+     * - Live 模式：从交易所API获取真实持仓
      *
      * @param apiKeyId API Key ID (可选)
      * @return 实时仓位数据
@@ -669,7 +734,42 @@ public class TradingController {
     public ApiResponse<List<PositionModel>> getLivePositionsByApiKey(@PathVariable Long apiKeyId) {
         try {
             log.debug("获取实时仓位数据 - API Key: {}", apiKeyId);
-            // 验证API Key
+
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(apiKeyId);
+            log.debug("获取实时仓位 - keyId: {}, executionMode: {}", apiKeyId, executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：返回模拟持仓
+                // 获取 API Key（用于获取实时标记价格）
+                ApiKey apiKey = apiKeyService.getDecryptedKey(apiKeyId);
+
+                // 获取持仓中的模拟持仓
+                List<DryRunPosition> dryRunPositions = dryRunPositionService.getOpenPositions(apiKeyId);
+
+                // 检查止盈止损触发
+                for (DryRunPosition pos : dryRunPositions) {
+                    if ("open".equals(pos.getStatus())) {
+                        try {
+                            BigDecimal markPx = priceDataService.getMarkPrice(apiKey, pos.getInstId());
+                            boolean triggered = dryRunPositionService.checkAndCloseOnTpSl(pos, markPx);
+                            if (triggered) {
+                                log.info("【Dry Run】止盈止损触发 - instId: {}, posSide: {}", pos.getInstId(), pos.getPosSide());
+                            }
+                        } catch (Exception e) {
+                            log.warn("检查止盈止损触发失败 - instId: {}, error: {}", pos.getInstId(), e.getMessage());
+                        }
+                    }
+                }
+
+                // 重新获取持仓中的持仓返回（排除已触发的）
+                List<DryRunPosition> openPositions = dryRunPositionService.getOpenPositions(apiKeyId);
+                List<PositionModel> positions = convertDryRunPositions(openPositions, apiKey);
+                log.debug("【Dry Run】返回模拟持仓 - keyId: {}, 结果数: {}", apiKeyId, positions.size());
+                return ApiResponse.ok(positions);
+            }
+
+            // Live 模式：验证API Key并从交易所获取真实持仓
             ApiKey apiKey;
             try {
                 // 使用CexKeyService获取解密后的API密钥
@@ -692,7 +792,7 @@ public class TradingController {
                     : unifiedTradingService.getAlgoOrders(apiKey, "SWAP").getAlgoOrders();
             // 解析响应并转换为前端格式，同时整合算法订单数据
             List<PositionModel> positions = parsePositionsResponse(pos, algoOrders);
-            log.debug("成功获取实时仓位数据 - API Key: {}, 仓位数量: {}", apiKeyId, positions.size());
+            log.debug("【Live】返回交易所持仓 - keyId: {}, 结果数: {}", apiKeyId, positions.size());
             return ApiResponse.ok(positions);
         } catch (Exception e) {
             log.error("获取实时仓位数据失败 - API Key: {}", apiKeyId, e);
@@ -849,6 +949,7 @@ public class TradingController {
             if (null == request.sz || request.sz.compareTo(BigDecimal.ZERO) <= 0) {
                 return ApiResponse.fail("平仓数量必须大于0");
             }
+
             // 获取API Key
             ApiKey apiKey;
             try {
@@ -857,6 +958,37 @@ public class TradingController {
                 log.error("获取解密API密钥失败 - API Key: {}", request.apiKeyId, e);
                 return ApiResponse.fail("API密钥处理失败: " + e.getMessage());
             }
+
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(request.apiKeyId);
+            log.info("平仓请求 - keyId: {}, executionMode: {}", request.apiKeyId, executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：更新模拟持仓状态
+                var posOpt = dryRunPositionService.getPosition(request.apiKeyId, request.instId, request.posSide);
+                if (posOpt.isEmpty()) {
+                    return ApiResponse.fail("模拟持仓不存在");
+                }
+                var pos = posOpt.get();
+                if (pos.getClosed()) {
+                    return ApiResponse.fail("模拟仓位已平仓");
+                }
+                // 获取当前标记价格作为平仓价格
+                BigDecimal closePx = priceDataService.getMarkPrice(apiKey, request.instId);
+                if (closePx == null || closePx.compareTo(BigDecimal.ZERO) <= 0) {
+                    return ApiResponse.fail("无法获取标记价格");
+                }
+                // 平仓并保留记录
+                dryRunPositionService.closePositionWithRecord(pos, closePx, "MANUAL");
+                log.info("【Dry Run】平仓成功 - instId: {}, posSide: {}, closePx: {}", request.instId, request.posSide, closePx);
+
+                ClosePositionResult response = ClosePositionResult.success("dry-run", "模拟平仓成功",
+                                request.instId, request.posSide, request.sz)
+                        .withCloseType("market");
+                return ApiResponse.ok(response);
+            }
+
+            // Live 模式：原有逻辑
             if (!"active".equals(apiKey.getStatus())) {
                 return ApiResponse.fail("API Key未激活");
             }
@@ -1157,6 +1289,188 @@ public class TradingController {
     }
 
     /**
+     * 将 DryRunPosition 列表转换为 PositionModel 列表
+     * 批量获取实时标记价格以提高性能
+     *
+     * @param dryRunPositions 模拟持仓列表
+     * @param apiKey          API Key（用于获取实时价格）
+     * @return PositionModel 列表
+     */
+    private List<PositionModel> convertDryRunPositions(List<DryRunPosition> dryRunPositions, ApiKey apiKey) {
+        if (CollectionUtils.isEmpty(dryRunPositions)) {
+            return new ArrayList<>();
+        }
+
+        // 批量获取所有持仓合约的标记价格和资金费率
+        Map<String, BigDecimal> markPriceCache = new HashMap<>();
+        Map<String, BigDecimal> fundingRateCache = new HashMap<>();
+        for (DryRunPosition pos : dryRunPositions) {
+            if (!markPriceCache.containsKey(pos.getInstId())) {
+                try {
+                    BigDecimal markPrice = priceDataService.getMarkPrice(apiKey, pos.getInstId());
+                    markPriceCache.put(pos.getInstId(), markPrice != null ? markPrice : BigDecimal.ZERO);
+                } catch (Exception e) {
+                    log.warn("获取标记价格失败 - instId: {}, error: {}", pos.getInstId(), e.getMessage());
+                    markPriceCache.put(pos.getInstId(), BigDecimal.ZERO);
+                }
+            }
+            if (!fundingRateCache.containsKey(pos.getInstId())) {
+                try {
+                    CexFundingRate fundingRateInfo = priceDataService.getFundingRate(apiKey, pos.getInstId());
+                    BigDecimal rate = fundingRateInfo != null && fundingRateInfo.getFundingRate() != null
+                            ? fundingRateInfo.getFundingRate()
+                            : BigDecimal.ZERO;
+                    fundingRateCache.put(pos.getInstId(), rate);
+                } catch (Exception e) {
+                    log.warn("获取资金费率失败 - instId: {}, error: {}", pos.getInstId(), e.getMessage());
+                    fundingRateCache.put(pos.getInstId(), BigDecimal.ZERO);
+                }
+            }
+        }
+
+        // 转换持仓数据
+        return dryRunPositions.stream()
+                .map(pos -> convertDryRunToPositionModel(
+                        pos,
+                        markPriceCache.get(pos.getInstId()),
+                        fundingRateCache.get(pos.getInstId())))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 将 DryRunPosition 转换为 PositionModel
+     *
+     * @param dryRunPos   模拟持仓实体
+     * @param markPx      标记价格
+     * @param fundingRate 资金费率
+     * @return PositionModel
+     */
+    private PositionModel convertDryRunToPositionModel(DryRunPosition dryRunPos, BigDecimal markPx, BigDecimal fundingRate) {
+        PositionModel model = new PositionModel();
+        model.setInstId(dryRunPos.getInstId());
+        model.setInstType("SWAP"); // 模拟持仓都是永续合约
+        model.setPosSide(dryRunPos.getPosSide());
+
+        // 持仓数量
+        BigDecimal posAbs = dryRunPos.getPos().abs();
+        model.setPos(posAbs);
+        model.setAvailPos(posAbs);
+        model.setPosition(posAbs); // 前端使用 position 字段
+
+        // 基础字段
+        BigDecimal avgPx = dryRunPos.getAvgPx();
+        BigDecimal lever = dryRunPos.getLever();
+        model.setAvgPx(avgPx);
+        model.setLever(lever);
+        model.setUpl(dryRunPos.getUnrealizedPnl() != null ? dryRunPos.getUnrealizedPnl() : BigDecimal.ZERO);
+        model.setCcy("USDT");
+        model.setMgnMode("isolated"); // 逐仓模式
+
+        // 保证金（如果数据库为空则实时计算）
+        BigDecimal margin = dryRunPos.getMargin();
+        if (margin == null || margin.compareTo(BigDecimal.ZERO) == 0) {
+            if (avgPx != null && lever != null && lever.compareTo(BigDecimal.ZERO) > 0) {
+                margin = posAbs.multiply(avgPx).divide(lever, 8, RoundingMode.HALF_UP);
+            } else {
+                margin = BigDecimal.ZERO;
+            }
+        }
+        model.setMargin(margin);
+
+        // 设置标记价格
+        model.setMarkPx(markPx);
+
+        // 计算预估强平价
+        if (markPx != null && markPx.compareTo(BigDecimal.ZERO) > 0
+                && avgPx != null && avgPx.compareTo(BigDecimal.ZERO) > 0
+                && lever != null && lever.compareTo(BigDecimal.ZERO) > 0) {
+            double avgPrice = avgPx.doubleValue();
+            double leverage = lever.doubleValue();
+            String posSide = dryRunPos.getPosSide();
+
+            // 预估强平价计算（简化公式）
+            // 多头：价格下跌到强平价；空头：价格上涨到强平价
+            double liquidationPrice;
+            if ("long".equalsIgnoreCase(posSide)) {
+                liquidationPrice = avgPrice * (1 - 0.9 / leverage);
+            } else {
+                liquidationPrice = avgPrice * (1 + 0.9 / leverage);
+            }
+            model.setEstimatedLiquidationPx(liquidationPrice);
+        }
+
+        // 计算累计资金费 = 持仓周期数 × 开仓资金费率 × 名义价值
+        // 公式：累计资金费 = (当前时间 - 开仓时间) / 结算周期(8小时) × 资金费率 × 名义价值
+        if (dryRunPos.getFundingRate() != null && dryRunPos.getCreatedTime() != null && avgPx != null) {
+            long holdingHours = java.time.Duration.between(
+                    dryRunPos.getCreatedTime(), LocalDateTime.now()).toHours();
+            // OKX 结算周期为 8 小时
+            int settlementCycle = 8;
+            long periods = holdingHours / settlementCycle;
+            if (periods > 0) {
+                BigDecimal notionalValue = posAbs.multiply(avgPx);
+                BigDecimal fundingFee = new BigDecimal(periods)
+                        .multiply(dryRunPos.getFundingRate())
+                        .multiply(notionalValue);
+                model.setFundingFee(fundingFee);
+            } else {
+                model.setFundingFee(BigDecimal.ZERO);
+            }
+        } else {
+            model.setFundingFee(BigDecimal.ZERO);
+        }
+
+        // 计算保证金维持率百分比
+        // marginRatio = 保证金 / 持仓名义价值，值越小风险越高
+        if (markPx != null && markPx.compareTo(BigDecimal.ZERO) > 0 && margin != null) {
+            BigDecimal notionalValue = posAbs.multiply(markPx);
+            if (notionalValue.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal marginRatio = margin.divide(notionalValue, 4, RoundingMode.HALF_UP);
+                double marginRatioPercent = marginRatio.multiply(new BigDecimal("100")).doubleValue();
+                model.setMarginRatioPercent(marginRatioPercent);
+            } else {
+                model.setMarginRatioPercent(100.0); // 默认安全值
+            }
+        } else {
+            model.setMarginRatioPercent(100.0); // 默认安全值
+        }
+
+        // 计算未实现盈亏
+        // 多头: (标记价 - 开仓价) × 数量
+        // 空头: (开仓价 - 标记价) × 数量
+        if (markPx != null && markPx.compareTo(BigDecimal.ZERO) > 0 && avgPx != null && avgPx.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal upl;
+            if ("long".equalsIgnoreCase(dryRunPos.getPosSide())) {
+                upl = markPx.subtract(avgPx).multiply(posAbs);
+            } else {
+                upl = avgPx.subtract(markPx).multiply(posAbs);
+            }
+            model.setUpl(upl);
+            // 盈亏率 = 未实现盈亏 / 保证金
+            if (margin != null && margin.compareTo(BigDecimal.ZERO) > 0) {
+                model.setUplRatio(upl.divide(margin, 8, RoundingMode.HALF_UP));
+            }
+        }
+
+        // 设置止盈止损
+        if (dryRunPos.getTakeProfitPrice() != null) {
+            model.setTotalTakeProfitPrice(dryRunPos.getTakeProfitPrice().toPlainString());
+        }
+        if (dryRunPos.getStopLossPrice() != null) {
+            model.setTotalStopLossPrice(dryRunPos.getStopLossPrice().toPlainString());
+        }
+
+        // 设置时间
+        if (dryRunPos.getCreatedTime() != null) {
+            model.setCTime(dryRunPos.getCreatedTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        }
+        if (dryRunPos.getUpdatedTime() != null) {
+            model.setUTime(dryRunPos.getUpdatedTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli());
+        }
+        return model;
+    }
+
+    /**
      * 设置全仓止盈止损
      */
     @PostMapping("/total-stop-loss")
@@ -1167,7 +1481,36 @@ public class TradingController {
             if (null == apiKey) {
                 return ApiResponse.fail("API Key不存在");
             }
-            // 调用统一交易服务,构建算法订单请求
+
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(request.getApiKeyId().longValue());
+            log.info("设置止盈止损 - keyId: {}, executionMode: {}", request.getApiKeyId(), executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：更新模拟持仓的止盈止损
+                BigDecimal tp = StringUtils.hasText(request.getTpTriggerPx()) && !"0".equals(request.getTpTriggerPx())
+                        ? new BigDecimal(request.getTpTriggerPx()) : null;
+                BigDecimal sl = StringUtils.hasText(request.getSlTriggerPx()) && !"0".equals(request.getSlTriggerPx())
+                        ? new BigDecimal(request.getSlTriggerPx()) : null;
+
+                boolean success = dryRunPositionService.updateTpSl(
+                        request.getApiKeyId().longValue(),
+                        request.getInstId(),
+                        request.getPosSide().toLowerCase(),
+                        tp, sl);
+
+                if (success) {
+                    log.info("【Dry Run】设置止盈止损成功 - instId: {}, posSide: {}, tp: {}, sl: {}",
+                            request.getInstId(), request.getPosSide(), tp, sl);
+                    StopLossResult stopLossResult = StopLossResult.success("dry-run", "模拟止盈止损设置成功",
+                            request.getTpTriggerPx(), request.getSlTriggerPx());
+                    return ApiResponse.ok(stopLossResult);
+                } else {
+                    return ApiResponse.fail("模拟持仓不存在或已平仓");
+                }
+            }
+
+            // Live 模式：调用统一交易服务,构建算法订单请求
             CexAlgoOrderRequest.CexAlgoOrderRequestBuilder builder = CexAlgoOrderRequest.builder()
                     .symbol(request.getInstId())
                     .tradeMode(request.getMgnMode() != null ? request.getMgnMode().toLowerCase() : "cross")  // 使用请求中的保证金模式,默认全仓
@@ -1226,7 +1569,38 @@ public class TradingController {
             if (null == apiKey) {
                 return ApiResponse.fail("API Key不存在");
             }
-            // 验证必要参数
+
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(request.getApiKeyId().longValue());
+            log.info("修改止盈止损 - keyId: {}, executionMode: {}", request.getApiKeyId(), executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：更新模拟持仓的止盈止损
+                if (!StringUtils.hasText(request.getPosSide())) {
+                    return ApiResponse.fail("持仓方向不能为空");
+                }
+
+                BigDecimal tp = StringUtils.hasText(request.getTpTriggerPx())
+                        ? new BigDecimal(request.getTpTriggerPx()) : null;
+                BigDecimal sl = StringUtils.hasText(request.getSlTriggerPx())
+                        ? new BigDecimal(request.getSlTriggerPx()) : null;
+
+                boolean success = dryRunPositionService.updateTpSl(
+                        request.getApiKeyId().longValue(),
+                        request.getInstId(),
+                        request.getPosSide().toLowerCase(),
+                        tp, sl);
+
+                if (success) {
+                    log.info("【Dry Run】修改止盈止损成功 - instId: {}, posSide: {}, tp: {}, sl: {}",
+                            request.getInstId(), request.getPosSide(), tp, sl);
+                    return ApiResponse.ok(StopLossResult.success("dry-run", "模拟止盈止损修改成功"));
+                } else {
+                    return ApiResponse.fail("模拟持仓不存在或已平仓");
+                }
+            }
+
+            // Live 模式：验证必要参数
             if (!StringUtils.hasText(request.getAlgoId())) {
                 return ApiResponse.fail("算法订单ID不能为空");
             }
@@ -1282,7 +1656,35 @@ public class TradingController {
             if (null == apiKey) {
                 return ApiResponse.fail("API Key不存在");
             }
-            // 调用统一交易服务
+
+            // 判断执行模式
+            ExecutionMode executionMode = executionModeResolver.resolveByApiKeyId(request.getApiKeyId().longValue());
+            log.info("取消止盈止损 - keyId: {}, executionMode: {}", request.getApiKeyId(), executionMode);
+
+            if (ExecutionMode.DRY_RUN.equals(executionMode)) {
+                // Dry Run 模式：清除模拟持仓的止盈止损
+                if (!StringUtils.hasText(request.getInstId())) {
+                    return ApiResponse.fail("合约品种不能为空");
+                }
+                if (!StringUtils.hasText(request.getPosSide())) {
+                    return ApiResponse.fail("持仓方向不能为空");
+                }
+
+                boolean success = dryRunPositionService.clearTpSl(
+                        request.getApiKeyId().longValue(),
+                        request.getInstId(),
+                        request.getPosSide().toLowerCase());
+
+                if (success) {
+                    log.info("【Dry Run】取消止盈止损成功 - instId: {}, posSide: {}",
+                            request.getInstId(), request.getPosSide());
+                    return ApiResponse.ok(TradingResult.success("dry-run", "模拟止盈止损取消成功"));
+                } else {
+                    return ApiResponse.fail("模拟持仓不存在");
+                }
+            }
+
+            // Live 模式：调用统一交易服务
             CexCancelAlgoOrderRequest cancelRequest = CexCancelAlgoOrderRequest.builder()
                     .algoId(request.getAlgoId())
                     .build();
@@ -1839,6 +2241,165 @@ public class TradingController {
         } catch (Exception e) {
             log.error("[getUnifiedChartData] 处理失败", e);
             return ResponseEntity.ok(ApiResponse.fail("获取图表数据失败: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * 获取 Pivot Points (枢轴点) 数据
+     * 基于指定时间帧和采样数量的 K 线数据计算支撑位和阻力位
+     *
+     * @param instId    合约ID
+     * @param apiKeyId  API Key ID (可选)
+     * @param timeframe 时间周期 (如 4H, 1D)
+     * @param limit     K线数量 (默认100)
+     * @return Pivot Points 数据
+     */
+    @GetMapping("/pivot-points/{instId}")
+    public ApiResponse<Map<String, Object>> getPivotPoints(@PathVariable String instId,
+                                                           @RequestParam(required = false) Long apiKeyId,
+                                                           @RequestParam(defaultValue = "4H") String timeframe,
+                                                           @RequestParam(defaultValue = "100") Integer limit,
+                                                           @RequestParam(defaultValue = "classic") String method) {
+        try {
+            log.debug("获取Pivot Points - 合约: {}, 时间帧: {}, 限制: {}", instId, timeframe, limit);
+
+            if (!StringUtils.hasText(instId)) {
+                return ApiResponse.fail("合约品种不能为空");
+            }
+
+            // 获取ApiKey对象
+            ApiKey apiKey;
+            if (apiKeyId != null) {
+                apiKey = apiKeyService.getDecryptedKey(apiKeyId);
+                if (null == apiKey) {
+                    return ApiResponse.fail("未找到指定的API Key: " + apiKeyId);
+                }
+            } else {
+                apiKey = apiKeyService.getDefaultApiKey();
+                if (apiKey == null) {
+                    return ApiResponse.fail("未配置可用的默认API Key");
+                }
+            }
+
+            // 构建 K 线数据请求
+            UnifiedChartDataRequest request = UnifiedChartDataRequest.builder()
+                    .instId(instId)
+                    .timeframe(timeframe)
+                    .limit(limit)
+                    .build();
+
+            // 获取 K 线数据
+            UnifiedChartDataResponse chartData = priceDataService.getUnifiedChartData(apiKey, request);
+
+            if (chartData == null || chartData.getCandles() == null || chartData.getCandles().isEmpty()) {
+                return ApiResponse.fail("未获取到K线数据");
+            }
+
+            // 对 K 线数据按时间戳升序排序（OKX API 返回倒序）
+            List<MarketCandleModel> candles = chartData.getCandles();
+            candles.sort(Comparator.comparingLong(MarketCandleModel::getTimestamp));
+
+            // 从 K 线数据中计算周期内的最高价、最低价、收盘价
+            BigDecimal periodHigh = null;
+            BigDecimal periodLow = null;
+            BigDecimal lastClose = null;
+            Long highTime = null;
+            Long lowTime = null;
+
+            for (MarketCandleModel candle : chartData.getCandles()) {
+                if (candle.getHigh() != null) {
+                    if (periodHigh == null || candle.getHigh().compareTo(periodHigh) > 0) {
+                        periodHigh = candle.getHigh();
+                        highTime = candle.getTimestamp();
+                    }
+                }
+                if (candle.getLow() != null) {
+                    if (periodLow == null || candle.getLow().compareTo(periodLow) < 0) {
+                        periodLow = candle.getLow();
+                        lowTime = candle.getTimestamp();
+                    }
+                }
+            }
+
+            // 获取周期时间范围
+            Long periodStartTime = chartData.getCandles().get(0).getTimestamp();
+            Long periodEndTime = chartData.getCandles().get(chartData.getCandles().size() - 1).getTimestamp();
+
+            // 获取最后一根 K 线的收盘价
+            MarketCandleModel lastCandle = chartData.getCandles().get(chartData.getCandles().size() - 1);
+            lastClose = lastCandle.getClose();
+
+            if (periodHigh == null || periodLow == null || lastClose == null) {
+                return ApiResponse.fail("K线数据不完整，无法计算Pivot Points");
+            }
+
+            // 计算 Pivot Points
+            Map<String, BigDecimal> pivotPoints = commonTechnicalIndicatorService.calculatePivotPoints(periodHigh, periodLow, lastClose, method);
+
+            // 构建返回结果
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("instId", instId);
+            result.put("timeframe", timeframe);
+            result.put("method", method);
+            result.put("periodStartTime", periodStartTime);
+            result.put("periodEndTime", periodEndTime);
+            result.put("periodHigh", periodHigh);
+            result.put("periodLow", periodLow);
+            result.put("highTime", highTime);
+            result.put("lowTime", lowTime);
+            result.put("lastClose", lastClose);
+            result.put("pivot", pivotPoints.get("pivot"));
+
+            // 支撑位数组 (S1, S2) - 包含价格、计算依据和生效时间
+            List<Map<String, Object>> supports = new ArrayList<>();
+            Map<String, Object> s1Info = new LinkedHashMap<>();
+            s1Info.put("price", pivotPoints.get("s1"));
+            s1Info.put("basedOn", "high");
+            s1Info.put("basedTime", highTime);
+            supports.add(s1Info);
+
+            Map<String, Object> s2Info = new LinkedHashMap<>();
+            s2Info.put("price", pivotPoints.get("s2"));
+            s2Info.put("basedOn", "high_low");
+            s2Info.put("basedTime", periodEndTime);
+            supports.add(s2Info);
+
+            Map<String, Object> s3Info = new LinkedHashMap<>();
+            s3Info.put("price", pivotPoints.get("s3"));
+            s3Info.put("basedOn", "high_low");
+            s3Info.put("basedTime", periodEndTime);
+            supports.add(s3Info);
+            result.put("supports", supports);
+
+            // 阻力位数组 (R1, R2) - 包含价格、计算依据和生效时间
+            List<Map<String, Object>> resistances = new ArrayList<>();
+            Map<String, Object> r1Info = new LinkedHashMap<>();
+            r1Info.put("price", pivotPoints.get("r1"));
+            r1Info.put("basedOn", "low");
+            r1Info.put("basedTime", lowTime);
+            resistances.add(r1Info);
+
+            Map<String, Object> r2Info = new LinkedHashMap<>();
+            r2Info.put("price", pivotPoints.get("r2"));
+            r2Info.put("basedOn", "high_low");
+            r2Info.put("basedTime", periodEndTime);
+            resistances.add(r2Info);
+
+            Map<String, Object> r3Info = new LinkedHashMap<>();
+            r3Info.put("price", pivotPoints.get("r3"));
+            r3Info.put("basedOn", "high_low");
+            r3Info.put("basedTime", periodEndTime);
+            resistances.add(r3Info);
+            result.put("resistances", resistances);
+
+            log.debug("Pivot Points计算完成 - pivot: {}, S1: {}, R1: {}",
+                    pivotPoints.get("pivot"), pivotPoints.get("s1"), pivotPoints.get("r1"));
+
+            return ApiResponse.ok(result);
+
+        } catch (Exception e) {
+            log.error("获取Pivot Points失败 - 合约: {}", instId, e);
+            return ApiResponse.fail("获取Pivot Points失败: " + e.getMessage());
         }
     }
 

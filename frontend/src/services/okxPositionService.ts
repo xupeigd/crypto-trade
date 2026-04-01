@@ -37,7 +37,7 @@ export class OkxPositionService {
     static async getLatestPositions(params: OkxPositionLatestRequest = {}): Promise<OkxPosition[]> {
         try {
             const requestBody = {
-                ...(params.vendor && params.vendor !== 'ALL' && {vendor: params.vendor}),
+                ...(params.vendor && {vendor: params.vendor}),
                 sortBy: 'uTime',
                 sortOrder: 'desc',
                 page: 0,
@@ -58,7 +58,7 @@ export class OkxPositionService {
     static async getPositionHistory(params: OkxPositionHistoryRequest): Promise<OkxPosition[]> {
         try {
             const requestBody = {
-                ...(params.vendor && params.vendor !== 'ALL' && {vendor: params.vendor}),
+                ...(params.vendor && {vendor: params.vendor}),
                 sortBy: 'uTime',
                 sortOrder: params.sort || 'desc',
                 page: 0,
@@ -79,7 +79,7 @@ export class OkxPositionService {
     static async getInstrumentPositionHistory(params: OkxPositionInstrumentRequest): Promise<OkxPosition[]> {
         try {
             const requestBody = {
-                ...(params.vendor && params.vendor !== 'ALL' && {vendor: params.vendor}),
+                ...(params.vendor && {vendor: params.vendor}),
                 instIds: [params.instId],
                 sortBy: 'uTime',
                 sortOrder: 'desc',
@@ -101,7 +101,7 @@ export class OkxPositionService {
     static async getPositionStatistics(params: OkxPositionStatisticsRequest = {}): Promise<OkxPositionStatistics> {
         try {
             const requestBody = {
-                ...(params.vendor && params.vendor !== 'ALL' && {vendor: params.vendor}),
+                ...(params.vendor && {vendor: params.vendor}),
                 dimension: 'instrument_type',
                 groupByCurrency: true,
                 groupByInstType: true,

@@ -97,8 +97,8 @@
 .indicators-title {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
 }
@@ -115,8 +115,8 @@
 .indicators-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
 }
@@ -155,8 +155,8 @@
 .indicators-function-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
 }
@@ -194,8 +194,8 @@
 .timeframe-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
 }
@@ -204,8 +204,8 @@
 .sample-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
 }
@@ -214,8 +214,8 @@
 .sort-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    gap: 3px;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
 }
@@ -233,7 +233,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     padding: 4px 0;
     font-size: 10px;
@@ -286,9 +286,9 @@
 .timeframe-row .time-label,
 .sample-row .sample-label {
     color: #ffffff;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 500;
-    margin-right: 6px;
+    margin-right: 3px;
     white-space: nowrap;
 }
 
@@ -296,9 +296,9 @@
 .timeframe-sample-center .ant-btn,
 .timeframe-row .ant-btn,
 .sample-row .ant-btn {
-    font-size: 11px;
-    height: 24px;
-    padding: 0 6px;
+    font-size: 10px;
+    height: 22px;
+    padding: 0 4px;
     border: 1px solid #555555;
     background: #1a1a1a !important;
     color: #ffffff;
@@ -316,7 +316,7 @@
 
 /* 采样按钮的最小宽度调整 */
 .sample-row .ant-btn {
-    min-width: 36px;
+    min-width: 28px;
 }
 
 .timeframe-row .ant-btn:hover,
@@ -361,7 +361,7 @@
     background: #1a1a1a;
     border: 1px solid #434343;
     border-radius: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     margin-bottom: 12px;
 }
@@ -377,14 +377,14 @@
 .indicator-controls .ant-checkbox-group {
     display: flex;
     gap: 12px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 /* 技术指标按钮样式优化 */
 .indicator-controls .ant-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
     min-width: 60px;
     height: 28px;
     background: #1f1f1f;
@@ -442,7 +442,7 @@
 .indicator-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     margin-right: 12px;
 }
 
@@ -671,7 +671,7 @@
 /* 优化超小屏幕 */
 @media (max-width: 576px) {
     .chart-controls {
-        gap: 4px;
+        gap: 3px;
         margin-bottom: 8px;
     }
 
@@ -747,7 +747,7 @@
     background: #1a1a1a;
     border: 1px solid #434343;
     border-radius: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     margin-bottom: 12px;
 }
@@ -764,7 +764,7 @@
 .function-controls .ant-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
     min-width: 60px;
     height: 28px;
     background: #1f1f1f;

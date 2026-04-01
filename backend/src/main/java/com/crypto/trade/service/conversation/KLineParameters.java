@@ -12,7 +12,8 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class KLineParameters extends ToolParameters {
+public class KLineParameters
+        extends ToolParameters {
 
     /**
      * 合约代码，如 BTC-USDT-SWAP
@@ -35,7 +36,7 @@ public class KLineParameters extends ToolParameters {
     private String analysisType;
 
     @Override
-    public String getAction() {
+    String getAction() {
         return "k_line";
     }
 }

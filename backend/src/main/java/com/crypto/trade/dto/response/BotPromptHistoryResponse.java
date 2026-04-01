@@ -294,4 +294,14 @@ public class BotPromptHistoryResponse {
      */
     @JsonProperty("tradeActionStatus")
     private String tradeActionStatus;
+
+    @JsonProperty("flowNodes")
+    private List<FlowNodeStatusResponse> flowNodes;
+
+    @JsonProperty("currentNodeCode")
+    private String currentNodeCode;
+
+    @JsonProperty("flowFinished")
+    private Boolean flowFinished;
+
 }

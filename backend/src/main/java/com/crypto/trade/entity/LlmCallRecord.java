@@ -168,6 +168,9 @@ public class LlmCallRecord {
     @Column(name = "response_content", columnDefinition = "LONGTEXT")
     private String responseContent;
 
+    @Column(name = "flow_nodes_json", columnDefinition = "LONGTEXT")
+    private String flowNodesJson;
+
 
     /**
      * 错误信息（调用失败时记录）

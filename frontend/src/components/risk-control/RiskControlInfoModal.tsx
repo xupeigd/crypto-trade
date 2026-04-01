@@ -287,7 +287,7 @@ const RiskControlInfoModal: React.FC<RiskControlInfoModalProps> = ({
                     {order.estimatedTotalCapital && (
                         <div className="capital-estimation">
                             <InfoCircleOutlined style={{marginRight: 8}} />
-                            <span>预估总占用资金：{parseFloat(order.estimatedTotalCapital).toFixed(2)} USDT</span>
+                            <span>预估总占用资金：{parseFloat(order.estimatedTotalCapital).toFixed(2)} ₮</span>
                         </div>
                     )}
 

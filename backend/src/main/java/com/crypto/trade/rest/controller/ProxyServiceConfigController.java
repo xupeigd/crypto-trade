@@ -184,12 +184,12 @@ public class ProxyServiceConfigController {
     @PostMapping("/{id}/test")
     public ApiResponse<TestConnectionResponse> testConnection(@PathVariable Long id) {
         try {
-            boolean success = proxyServiceConfigService.testProxyConnection(id);
+            var result = proxyServiceConfigService.testProxyConnectionResult(id);
             TestConnectionResponse response = TestConnectionResponse.builder()
-                    .success(success)
-                    .message(success ? "代理连接测试成功" : "代理连接测试失败")
+                    .success(result.isSuccess())
+                    .message(result.getMessage())
                     .build();
-            log.debug("测试代理连接完成，代理配置ID: {}, 结果: {}", id, success);
+            log.debug("测试代理连接完成，代理配置ID: {}, 结果: {}", id, result.isSuccess());
             return ApiResponse.ok(response);
         } catch (Exception e) {
             log.error("测试代理连接失败，代理配置ID: {}", id, e);

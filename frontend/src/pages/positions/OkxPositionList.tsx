@@ -6,7 +6,7 @@ import {OkxPositionService} from '../../services/okxPositionService';
 import {usePageTimer} from '../../hooks/usePageTimer';
 import RefreshIndicator from '../../components/RefreshIndicator';
 import AutoRefreshToggle from '../../components/AutoRefreshToggle';
-import type {OkxPosition, OkxPositionStatistics, OkxPositionSummary} from '../../types/okxPosition';
+import type {OkxPosition, OkxPositionSummary} from '../../types/okxPosition';
 import {formatEffectiveDecimal} from '../../utils/numberFormatter';
 
 const {Title, Text} = Typography;
@@ -16,7 +16,6 @@ const {Search} = Input;
 const OkxPositionList: React.FC = () => {
     // 状态管理
     const [positions, setPositions] = useState<OkxPosition[]>([]);
-    const [statistics, setStatistics] = useState<OkxPositionStatistics | null>(null);
     const [summary, setSummary] = useState<OkxPositionSummary | null>(null);
     const [searchText, setSearchText] = useState('');
     const [selectedVendor, setSelectedVendor] = useState<string>('ALL'); // 添加交易所筛选状态，默认为'ALL'
@@ -35,21 +34,13 @@ const OkxPositionList: React.FC = () => {
         try {
             setError(''); // 清除之前的错误
 
-            const [positionsData, statisticsData] = await Promise.all([
-                OkxPositionService.getLatestPositions({vendor: selectedVendor}),
-                OkxPositionService.getPositionStatistics({vendor: selectedVendor})
-            ]);
+            // 使用与trading页面相同的数据获取方式，确保数据来源一致
+            const positionsData = await OkxPositionService.getLatestPositions({vendor: selectedVendor});
 
             console.log('获取到OKX持仓数据:', positionsData.length, '条');
-            console.log('获取到统计数据:', statisticsData);
 
-            // 后端已统一使用驼峰命名（通过@JsonNaming注解），直接使用数据即可
+            // 使用前端计算汇总统计，与trading页面保持一致
             setPositions(positionsData);
-
-            // 使用统计数据，无需映射，因为后端已返回正确格式
-            setStatistics(statisticsData);
-
-            // 计算汇总统计
             const summaryData = OkxPositionService.calculatePositionSummary(positionsData);
             setSummary(summaryData);
 
@@ -82,10 +73,16 @@ const OkxPositionList: React.FC = () => {
     useEffect(() => {
         console.log('OKX持仓页面组件挂载，立即加载数据');
 
-        // ✅ 新增：加载交易所列表
+        // 加载交易所列表并设置默认vendor
         OkxPositionService.getActiveCexExchanges().then(exchanges => {
             console.log('获取到交易所列表:', exchanges);
             setCexOptions(exchanges);
+
+            // 如果只有一个交易所，自动选择它（与trading页面保持一致）
+            const actualExchanges = exchanges.filter(e => e !== 'ALL');
+            if (actualExchanges.length === 1) {
+                setSelectedVendor(actualExchanges[0]);
+            }
         });
 
         loadPositionData();
@@ -125,7 +122,7 @@ const OkxPositionList: React.FC = () => {
 
         // 交易所筛选（API层面已经处理，这里保持逻辑一致性）
         if (selectedVendor && selectedVendor !== 'ALL') {
-            filtered = filtered.filter(pos => pos.vendor === selectedVendor);
+            filtered = filtered.filter(pos => pos.vendor?.toLowerCase() === selectedVendor?.toLowerCase());
         }
 
         // 搜索筛选
@@ -349,23 +346,23 @@ const OkxPositionList: React.FC = () => {
             )}
 
             {/* 统计卡片 */}
-            {statistics && (
+            {summary && (
                 <Row gutter={16} style={{marginBottom: 24}}>
                     <Col span={4}>
-                        <Card>
+                        <Card bodyStyle={{ padding: 12 }}>
                             <Statistic
                                 title="总持仓数"
-                                value={statistics.totalPositions ?? 0}
+                                value={(summary?.longPositions || 0) + (summary?.shortPositions || 0)}
                                 prefix={<LineChartOutlined/>}
                                 valueStyle={{color: '#1890ff', fontSize: '16px'}}
                             />
                         </Card>
                     </Col>
                     <Col span={4}>
-                        <Card>
+                        <Card bodyStyle={{ padding: 12 }}>
                             <Statistic
                                 title="总名义价值"
-                                value={statistics.typeStatistics?.reduce((sum: number, item: any) => sum + (item.totalNotional || 0), 0) || 0}
+                                value={summary?.totalNotional || 0}
                                 prefix={<DollarOutlined/>}
                                 formatter={(value) => formatEffectiveDecimal(value as number, 2)}
                                 valueStyle={{color: '#52c41a', fontSize: '16px'}}
@@ -373,7 +370,7 @@ const OkxPositionList: React.FC = () => {
                         </Card>
                     </Col>
                     <Col span={4}>
-                        <Card>
+                        <Card bodyStyle={{ padding: 12 }}>
                             <Statistic
                                 title="未结盈亏"
                                 value={summary?.totalUpl || 0}
@@ -388,7 +385,7 @@ const OkxPositionList: React.FC = () => {
                         </Card>
                     </Col>
                     <Col span={4}>
-                        <Card>
+                        <Card bodyStyle={{ padding: 12 }}>
                             <Statistic
                                 title="保证金"
                                 value={summary?.totalMargin || 0}
@@ -399,20 +396,20 @@ const OkxPositionList: React.FC = () => {
                         </Card>
                     </Col>
                     <Col span={4}>
-                        <Card>
+                        <Card bodyStyle={{ padding: 12 }}>
                             <Statistic
                                 title="多头持仓"
-                                value={statistics.sideStatistics?.find((item: any) => item.name === 'long')?.count || 0}
+                                value={summary?.longPositions || 0}
                                 prefix={<RiseOutlined/>}
                                 valueStyle={{color: '#52c41a', fontSize: '16px'}}
                             />
                         </Card>
                     </Col>
                     <Col span={4}>
-                        <Card>
+                        <Card bodyStyle={{ padding: 12 }}>
                             <Statistic
                                 title="空头持仓"
-                                value={statistics.sideStatistics?.find((item: any) => item.name === 'short')?.count || 0}
+                                value={summary?.shortPositions || 0}
                                 prefix={<FallOutlined/>}
                                 valueStyle={{color: '#ff4d4f', fontSize: '16px'}}
                             />
@@ -493,7 +490,7 @@ const OkxPositionList: React.FC = () => {
             </Card>
 
             {/* 持仓表格 */}
-            <Card>
+            <Card bodyStyle={{ padding: 12 }}>
                 <Table
                     columns={columns}
                     dataSource={filteredPositions}
@@ -528,7 +525,7 @@ const OkxPositionList: React.FC = () => {
             {/* 数据更新时间 */}
             <div style={{textAlign: 'center', marginTop: 16}}>
                 <Text type="secondary">
-                    最后更新: {statistics?.latestUpdateTime ? dayjs(statistics.latestUpdateTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                    最后更新: {summary?.latestUpdateTime ? dayjs(summary.latestUpdateTime).format('YYYY-MM-DD HH:mm:ss') : '-'}
                 </Text>
             </div>
         </div>

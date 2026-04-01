@@ -30,6 +30,11 @@ public class ApiKeyModel {
     Long keyId;
 
     /**
+     * API Key名称标识
+     */
+    String keyName;
+
+    /**
      * CEX名称
      */
     String cexName;
@@ -77,6 +82,7 @@ public class ApiKeyModel {
 
         return ApiKeyModel.builder()
                 .keyId(entity.getKeyId())
+                .keyName(entity.getKeyName())
                 .cexName(entity.getCexName())
                 .storageType(entity.getStorageType())
                 .status(entity.getStatus())

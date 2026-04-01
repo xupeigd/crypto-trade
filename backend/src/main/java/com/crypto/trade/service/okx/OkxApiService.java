@@ -13,6 +13,8 @@ import com.crypto.trade.enums.CexApiType;
 import com.crypto.trade.enums.CexExchange;
 import com.crypto.trade.enums.CexHttpMethod;
 import com.crypto.trade.event.CexApiCallEvent;
+import com.crypto.trade.service.CexProxyBindingService;
+import com.crypto.trade.service.ProxyServiceConfigService;
 import com.crypto.trade.service.cex.CexApiService;
 import com.crypto.trade.service.signature.OKXSignatureService;
 import com.crypto.trade.util.JsonUtils;
@@ -29,6 +31,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -147,6 +151,7 @@ public class OkxApiService
      * Key: apiKeyId, Value: RateLimiter
      */
     private final ConcurrentHashMap<Long, RateLimiter> apiKeyRateLimiters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, HttpClient> proxyHttpClients = new ConcurrentHashMap<>();
 
     private final HttpClient httpClient;
 
@@ -154,6 +159,10 @@ public class OkxApiService
     OKXSignatureService okxSignatureService;
     @Autowired
     ApplicationEventPublisher eventPublisher;
+    @Autowired
+    CexProxyBindingService cexProxyBindingService;
+    @Autowired
+    ProxyServiceConfigService proxyServiceConfigService;
     /**
      * 每个API Key的QPS限制
      */
@@ -255,17 +264,18 @@ public class OkxApiService
      */
     private <T> List<T> commonFetchData(String apiName, String path, Class<? extends OkxApiResponse<T>> packageClass,
                                         ApiKey apiKey, String queryParams) {
+        String keyId = apiKey != null ? String.valueOf(apiKey.getKeyId()) : "public";
         try {
             String response = sendSignedRequest(apiKey, "GET", path
                     + (StringUtils.hasText(queryParams) ? ("?" + queryParams) : ""), "");
             OkxApiResponse<T> apiResponse = JsonUtils.parseTo(response, packageClass);
             if (null == apiResponse || !"0".equals(apiResponse.getCode())) {
-                log.debug("查询" + apiName + " / " + queryParams + " 失败 apiKey:" + apiKey.getKeyId() + ", response: " + response);
+                log.debug("查询" + apiName + " / " + queryParams + " 失败 apiKey:" + keyId + ", response: " + response);
                 return Collections.emptyList();
             }
             return CollectionUtils.isEmpty(apiResponse.getData()) ? Collections.emptyList() : apiResponse.getData();
         } catch (Exception e) {
-            log.warn("查询" + apiName + " / " + queryParams + " 失败 apiKey:" + apiKey.getKeyId() + " error: " + e.getMessage());
+            log.warn("查询" + apiName + " / " + queryParams + " 失败 apiKey:" + keyId + " error: " + e.getMessage());
         }
         return Collections.emptyList();
     }
@@ -322,14 +332,29 @@ public class OkxApiService
         }
         HttpRequest request = builder.build();
         log.debug("发送OKX API请求 - URL: {}, Method: {}, Body: {}", url, method, requestBody);
+        HttpClient currentClient = resolveHttpClientForOkx();
         // 发送请求并获取响应
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = currentClient.send(request, HttpResponse.BodyHandlers.ofString());
         // 记录响应
         log.debug("收到OKX API响应 - Status: {}, Body: {}", response.statusCode(), response.body());
         if (response.statusCode() != 200) {
             throw new RuntimeException("API请求失败 - 状态码: " + response.statusCode() + ", 响应: " + response.body());
         }
         return response.body();
+    }
+
+    private HttpClient resolveHttpClientForOkx() {
+        return cexProxyBindingService.getActiveBindingByCex(CexExchange.OKX.getCode())
+                .map(binding -> proxyHttpClients.computeIfAbsent(binding.getProxyId(), this::buildProxyHttpClient))
+                .orElse(httpClient);
+    }
+
+    private HttpClient buildProxyHttpClient(Long proxyId) {
+        var proxyConfig = proxyServiceConfigService.getProxyConfigById(proxyId);
+        return HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .proxy(ProxySelector.of(new InetSocketAddress(proxyConfig.getServerHost(), proxyConfig.getServerPort())))
+                .build();
     }
 
     /**
@@ -881,7 +906,7 @@ public class OkxApiService
      */
     private List<OkxMarkPrice> getMarkPriceFromOkx(ApiKey apiKey, String instId) {
         String queryParams = "instId=" + instId;
-        return commonFetchData("标记价格", API_PATH_GET_MARK_PRICE, OkxMarkPriceResponse.class, null, queryParams);
+        return commonFetchData("标记价格", API_PATH_GET_MARK_PRICE, OkxMarkPriceResponse.class, apiKey, queryParams);
     }
 
     /**

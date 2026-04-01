@@ -1055,6 +1055,43 @@ export const tradingService = {
     // 获取支持的指标类型
     getSupportedMetrics: () => {
         return tradingApi.get<ApiResponse<string[]>>('/trading/technical-indicators/metrics');
+    },
+
+    /**
+     * 获取 Pivot Points (枢轴点) 数据
+     * @param instId 合约ID
+     * @param timeframe 时间周期
+     * @param limit K线数量
+     * @param apiKeyId API Key ID (可选)
+     */
+    getPivotPoints: async (params: {
+        instId: string;
+        timeframe?: string;
+        limit?: number;
+        apiKeyId?: number;
+    }): Promise<{
+        instId: string;
+        timeframe: string;
+        periodHigh: number;
+        periodLow: number;
+        lastClose: number;
+        pivot: number;
+        supports: Array<{price: number; basedOn: string; basedTime: number}>;
+        resistances: Array<{price: number; basedOn: string; basedTime: number}>;
+    }> => {
+        const queryParams = new URLSearchParams();
+        if (params.timeframe) queryParams.append('timeframe', params.timeframe);
+        if (params.limit) queryParams.append('limit', String(params.limit));
+        if (params.apiKeyId) queryParams.append('apiKeyId', String(params.apiKeyId));
+
+        const response = await tradingApi.get<ApiResponse<any>>(
+            `/trading/pivot-points/${params.instId}?${queryParams.toString()}`
+        );
+
+        if (response.data && response.data.success && response.data.data) {
+            return response.data.data;
+        }
+        throw new Error(response.data?.message || '获取Pivot Points失败');
     }
 };
 

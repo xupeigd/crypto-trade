@@ -1,9 +1,117 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Modal, Space, Spin, message} from 'antd';
 import {LineChartOutlined} from '@ant-design/icons';
-import {klineBarsFromCandles, KLineChart} from '../../../components/charts/KLineChart';
-import {tradingService} from '../../../services/tradingService';
+import {KLineBar, LightweightCandlestickChart} from '../../../components/charts/LightweightCandlestickChart';
+import {tradingService, IndicatorDataPoint} from '../../../services/tradingService';
 import {OkxPosition} from '../../../types/okxPosition';
+
+/**
+ * 将 CandlestickData[] 转换为 KLineBar[] 格式
+ */
+const candlestickDataToKLineBars = (candles: any[]): KLineBar[] => {
+    return candles
+        .filter(c => c && Number.isFinite(c.timestamp))
+        .map(c => ({
+            time: c.timestamp,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+            volume: c.volume || 0,
+            confirmed: c.confirm === 1
+        }))
+        .sort((a, b) => a.time - b.time);
+};
+
+/**
+ * 将后端指标数据格式转换为 LightweightCandlestickChart 所需的扁平化格式
+ */
+const transformIndicatorsForChart = (rawIndicators: Record<string, any> | undefined) => {
+    if (!rawIndicators) return undefined;
+
+    const result: Record<string, Array<{
+        time: number;
+        value?: number;
+        upper?: number;
+        middle?: number;
+        lower?: number;
+        diff?: number;
+        signal?: number;
+        histogram?: number;
+        k?: number;
+        d?: number;
+        j?: number;
+    }>> = {};
+
+    Object.entries(rawIndicators).forEach(([key, indicator]) => {
+        const values = indicator?.data?.values || indicator?.values;
+        if (!values || !Array.isArray(values)) return;
+
+        // 特殊处理 BOLL：检查是否有直接的 upperBand/middleBand/lowerBand 字段
+        if (key === 'BOLL') {
+            const hasDirectBollFields = values.some((v: any) =>
+                v.upperBand !== undefined || v.middleBand !== undefined || v.lowerBand !== undefined
+            );
+
+            if (hasDirectBollFields) {
+                const period = indicator?.data?.period || indicator?.period || 20;
+                const seriesKey = `BOLL_boll_${period}`;
+                result[seriesKey] = values.map((v: any) => ({
+                    time: v.timestamp,
+                    upper: v.upperBand ?? undefined,
+                    middle: v.middleBand ?? undefined,
+                    lower: v.lowerBand ?? undefined,
+                }));
+                return;
+            }
+        }
+
+        values.forEach((v: IndicatorDataPoint) => {
+            const multiPeriod = v.multiPeriodValues;
+            if (!multiPeriod) return;
+
+            Object.entries(multiPeriod).forEach(([periodKey, periodData]: [string, any]) => {
+                const seriesKey = `${key}_${periodKey}`;
+
+                if (key === 'MACD') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        diff: periodData.diff,
+                        signal: periodData.dea,
+                        histogram: periodData.macd,
+                    });
+                } else if (key === 'BOLL') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        upper: periodData.upper,
+                        middle: periodData.middle,
+                        lower: periodData.lower,
+                    });
+                } else if (key === 'KDJ') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        k: periodData.k,
+                        d: periodData.d,
+                        j: periodData.j,
+                    });
+                } else {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        value: periodData,
+                    });
+                }
+            });
+        });
+    });
+
+    // 按时间排序
+    Object.values(result).forEach(arr => arr.sort((a, b) => a.time - b.time));
+    return result;
+};
 
 /**
  * 仓位K线图弹窗组件
@@ -35,7 +143,12 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({visible, positio
         markPrice: null
     });
     const [currentMarkPrice, setCurrentMarkPrice] = useState<number | null>(null); // 实时标记价格
-    const bars = useMemo(() => klineBarsFromCandles(chartData.candles || []), [chartData.candles]);
+    const bars = useMemo(() => candlestickDataToKLineBars(chartData.candles || []), [chartData.candles]);
+
+    // 转换指标数据为新格式
+    const transformedIndicators = useMemo(() => {
+        return transformIndicatorsForChart(chartData.indicators);
+    }, [chartData.indicators]);
 
     // 计算强平价格(简化版)
     const calculateLiquidationPrice = (pos: OkxPosition): number => {
@@ -103,8 +216,6 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({visible, positio
                             const indicatorData = response.indicators![indicator];
                             if (indicatorData && indicatorData.values) {
                                 // 反转values数组,使其与K线数据的升序保持一致
-                                // 后端返回的是倒序(最新→最旧),我们需要反转成升序(最旧→最新)
-                                // 然后再按timestamp排序,确保数据完全按时间升序排列
                                 const reversedValues = [...indicatorData.values].reverse()
                                     .sort((a, b) => a.timestamp - b.timestamp);
 
@@ -113,23 +224,10 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({visible, positio
                                     message: '',
                                     data: {
                                         ...indicatorData,
-                                        values: reversedValues  // 使用反转并排序后的数组
+                                        values: reversedValues
                                     }
                                 };
                             }
-                        });
-                    }
-
-                    // BOLL数据转换完成日志
-                    if (formattedIndicators['BOLL']) {
-                        console.log('[PositionChartModal] BOLL数据转换完成:', {
-                            success: formattedIndicators['BOLL'].success,
-                            valuesLength: formattedIndicators['BOLL'].data?.values?.length,
-                            firstValue: formattedIndicators['BOLL'].data?.values?.[0],
-                            lastValue: formattedIndicators['BOLL'].data?.values?.[formattedIndicators['BOLL'].data?.values?.length - 1],
-                            hasMultiPeriod: !!formattedIndicators['BOLL'].data?.values?.[0]?.multiPeriodValues,
-                            multiPeriodKeys: formattedIndicators['BOLL'].data?.values?.[0]?.multiPeriodValues ?
-                                Object.keys(formattedIndicators['BOLL'].data.values[0].multiPeriodValues) : []
                         });
                     }
 
@@ -146,7 +244,7 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({visible, positio
                             : (Number.isFinite(Number(candle.confirm)) ? Number(candle.confirm) : 1),
                     }));
 
-                    // 按时间戳正序排序(从旧到新),确保K线图正确展示(最旧的在左侧,最新的在右侧)
+                    // 按时间戳正序排序
                     candlestickData.sort((a, b) => a.timestamp - b.timestamp);
 
                     console.log('[PositionChartModal] K线数据转换完成:');
@@ -156,20 +254,12 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({visible, positio
                     console.log('[PositionChartModal] 技术指标数据转换完成:');
                     console.log('  - 指标数量:', Object.keys(formattedIndicators).length);
                     console.log('  - 指标列表:', Object.keys(formattedIndicators));
-                    Object.keys(formattedIndicators).forEach(key => {
-                        const ind = formattedIndicators[key];
-                        console.log(`  - ${key}:`, {
-                            success: ind.success,
-                            valuesLength: ind.data?.values?.length || 0
-                        });
-                    });
 
                     setChartData({
                         candles: candlestickData,
                         indicators: formattedIndicators,
                         markPrice: response.markPrice || null
                     });
-                    console.log('[PositionChartModal] chartData状态已更新');
                     console.log('[PositionChartModal] ==================== K线数据获取完成 ====================');
                 } else {
                     message.error('K线数据获取失败');
@@ -339,13 +429,13 @@ const PositionChartModal: React.FC<PositionChartModalProps> = ({visible, positio
 
                         {/* K线图 */}
                         <div style={{height: 'calc(100% - 80px)'}}>
-                            <KLineChart
-                                symbol={position.instId}
-                                period="1h"
+                            <LightweightCandlestickChart
                                 data={bars}
+                                height={700}
+                                timeFrame="1h"
                                 loading={loading}
                                 markPrice={currentMarkPrice || chartData.markPrice}
-                                indicators={chartData.indicators}
+                                indicators={transformedIndicators}
                                 referenceLines={{
                                     avgPx: position.avgPx ? Number(position.avgPx) : undefined,
                                     liquidationPx: liquidationPrice > 0 ? liquidationPrice : undefined,

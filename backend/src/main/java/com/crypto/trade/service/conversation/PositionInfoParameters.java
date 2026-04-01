@@ -12,20 +12,21 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class PositionInfoParameters extends ToolParameters {
+public class PositionInfoParameters
+        extends ToolParameters {
 
     /**
-     * 特定合约代码，可选
+     * 类型：ALIVE-当前持仓, PENDING-委托中, HISTORY-历史仓位
      */
-    private String instId;
+    private String type = "ALIVE";
 
     /**
-     * 详细级别：summary, detailed, risk_analysis
+     * 返回数量，-1表示全部，最大30
      */
-    private String detailLevel = "summary";
+    private Integer limit = -1;
 
     @Override
-    public String getAction() {
+    String getAction() {
         return "position_info";
     }
 }

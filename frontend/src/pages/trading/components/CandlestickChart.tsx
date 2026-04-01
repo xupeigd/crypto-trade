@@ -60,6 +60,7 @@ interface CandlestickChartProps {
         timeFrame: string;
         referenceLines?: CandlestickChartProps['referenceLines'];
     }) => React.ReactNode;
+    isDebugMode?: boolean; // 调试模式
 }
 
 // 主题颜色配置
@@ -106,13 +107,13 @@ const shouldDebug = () => {
 
 const debugLog = (...args: any[]) => {
     if (shouldDebug()) {
-        console.log(...args);
+        // console.log(...args);
     }
 };
 
 const debugWarn = (...args: any[]) => {
     if (shouldDebug()) {
-        console.warn(...args);
+        // console.warn(...args);
     }
 };
 
@@ -601,7 +602,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({
         const getPeriodFallback = (): number => {
             const period = indicator?.data?.period;
             if (Number.isFinite(Number(period))) return Number(period);
-            const periods = indicator?.data?.periods;
+            const periods = (indicator?.data as any)?.periods;
             if (Array.isArray(periods) && periods.length > 0 && Number.isFinite(Number(periods[0]))) {
                 return Number(periods[0]);
             }
@@ -967,7 +968,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({
             maxVolume = Math.max(maxVolume, item.volume);
         });
 
-        // console.log('[CandlestickChart] drawVolumeHistogram', { maxVolume, volumeY, volumeHeight, dataCount: visibleData.length });
+        // // console.log('[CandlestickChart] drawVolumeHistogram', { maxVolume, volumeY, volumeHeight, dataCount: visibleData.length });
 
         // 始终绘制标题，即使没有交易量数据
         ctx.fillStyle = COLORS.text;
@@ -3167,7 +3168,7 @@ const CandlestickChart: React.FC<CandlestickChartProps> = ({
                 ctx.font = '10px Arial';
                 ctx.textAlign = 'center'; // 居中对齐时间标签
 
-                // console.log(`时间标签对齐: ...`); // 移除日志
+                // // console.log(`时间标签对齐: ...`); // 移除日志
 
                 ctx.fillText(timeLabel, candleCenterX, xAxisY);
                 ctx.textAlign = 'start'; // 恢复默认对齐方式

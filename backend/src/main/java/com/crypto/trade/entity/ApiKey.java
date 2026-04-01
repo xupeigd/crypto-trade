@@ -26,6 +26,9 @@ public class ApiKey {
     @Column(name = "key_id")
     private Long keyId;
 
+    @Column(name = "key_name", length = 100, unique = true)
+    private String keyName;
+
     @Column(name = "cex_name", nullable = false, length = 50)
     private String cexName;
 

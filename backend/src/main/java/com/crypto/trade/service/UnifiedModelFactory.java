@@ -6,9 +6,13 @@ import com.crypto.trade.repository.AIModelConfigRepository;
 import com.crypto.trade.service.model.LocalModelCaller;
 import com.crypto.trade.service.model.ModelCaller;
 import com.crypto.trade.service.model.RemoteModelCaller;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.annotation.PreDestroy;
+import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ChatModel;
@@ -34,6 +38,11 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 public class UnifiedModelFactory {
+
+    /**
+     * 静态ObjectMapper用于静态方法
+     */
+    private static final ObjectMapper STATIC_MAPPER = new ObjectMapper();
 
     /**
      * 模型配置缓存名称
@@ -85,6 +94,11 @@ public class UnifiedModelFactory {
      */
     @Autowired
     private RemoteModelCaller remoteModelCaller;
+    /**
+     * JSON序列化/反序列化工具
+     */
+    @Autowired
+    private ObjectMapper objectMapper;
     /**
      * 默认ChatModel实例（Spring AI提供）
      */
@@ -307,6 +321,58 @@ public class UnifiedModelFactory {
     }
 
     /**
+     * 使用messages数组和tools调用模型（支持Function Calling）
+     *
+     * @param messages 消息数组，不能为空或空数组
+     * @param config   模型配置，必须为激活状态
+     * @param tools    工具定义列表（可选，为空时不传tools参数）
+     * @return 模型响应结果
+     * @throws UnifiedModelFactory.ModelCallException 当模型调用失败时抛出
+     */
+    public String callWithConfigAndMessagesAndTools(List<Message> messages, AIModelConfig config, List<Tool> tools)
+            throws UnifiedModelFactory.ModelCallException {
+        // 参数校验
+        if (config == null) {
+            throw new ModelCallException("模型配置不能为空",
+                    ModelCallException.ErrorCodes.INVALID_REQUEST, "null");
+        }
+
+        if (!config.getIsActive()) {
+            throw new ModelCallException("模型已禁用: " + config.getModelId(),
+                    ModelCallException.ErrorCodes.MODEL_NOT_FOUND, config.getModelId());
+        }
+
+        log.debug("使用messages数组和tools调用模型: {} (类型: {}), 消息数: {}, 工具数: {}",
+                config.getModelId(), config.getModelType(), messages.size(), tools != null ? tools.size() : 0);
+
+        // 并发控制
+        Semaphore limiter = concurrencyLimiters.computeIfAbsent(config.getModelId(),
+                k -> new Semaphore(config.getMaxConcurrent()));
+
+        try {
+            // 尝试获取调用许可（带超时）
+            boolean acquired = limiter.tryAcquire(config.getTimeoutSeconds(), TimeUnit.SECONDS);
+            if (!acquired) {
+                log.warn("获取模型调用许可超时: {}, 并发请求数过多", config.getModelId());
+                throw new ModelCallException("获取调用许可超时，并发请求数过多",
+                        ModelCallException.ErrorCodes.RATE_LIMIT_ERROR, config.getModelId());
+            }
+
+            // 执行模型调用
+            try {
+                return callDirectlyWithMessagesAndTools(messages, config, tools);
+            } finally {
+                // 释放许可
+                limiter.release();
+            }
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ModelCallException("调用被中断", e, ModelCallException.ErrorCodes.UNKNOWN_ERROR, config.getModelId());
+        }
+    }
+
+    /**
      * 直接调用模型（使用messages数组）
      *
      * @param messages 消息数组
@@ -326,6 +392,33 @@ public class UnifiedModelFactory {
             if (caller instanceof RemoteModelCaller && shouldRetry(e)) {
                 log.warn("远端模型调用失败(使用messages)，尝试重试: {}, 错误: {}", config.getModelId(), e.getMessage());
                 return ((RemoteModelCaller) caller).callWithMessagesWithRetry(messages, config);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 直接调用模型（使用messages数组和tools）
+     *
+     * @param messages 消息数组
+     * @param config   模型配置
+     * @param tools    工具定义列表
+     * @return 模型响应
+     */
+    private String callDirectlyWithMessagesAndTools(List<Message> messages, AIModelConfig config, List<Tool> tools)
+            throws ModelCallException {
+        // 获取对应的调用器
+        ModelCaller caller = getModelCaller(config);
+
+        try {
+            // 执行调用
+            return caller.callWithMessagesAndTools(messages, config, tools);
+
+        } catch (ModelCallException e) {
+            // 如果是远端模型且应该重试，执行重试逻辑
+            if (caller instanceof RemoteModelCaller && shouldRetry(e)) {
+                log.warn("远端模型调用失败(使用messages和tools)，尝试重试: {}, 错误: {}", config.getModelId(), e.getMessage());
+                return ((RemoteModelCaller) caller).callWithMessagesAndToolsWithRetry(messages, config, tools);
             }
             throw e;
         }
@@ -731,10 +824,28 @@ public class UnifiedModelFactory {
 
         private final String role;
         private final String content;
+        private final String name; // 用于tool类型消息
+        private final String reasoningContent; // 用于DeepSeek R1 reasoning_content
+        private final List<ToolCall> toolCalls; // 用于assistant类型消息的tool_calls
 
         public Message(String role, String content) {
+            this(role, content, null, null, null);
+        }
+
+        public Message(String role, String content, String name) {
+            this(role, content, name, null, null);
+        }
+
+        public Message(String role, String content, String name, List<ToolCall> toolCalls) {
+            this(role, content, name, null, toolCalls);
+        }
+
+        public Message(String role, String content, String name, String reasoningContent, List<ToolCall> toolCalls) {
             this.role = role;
             this.content = content;
+            this.name = name;
+            this.reasoningContent = reasoningContent;
+            this.toolCalls = toolCalls;
         }
 
         /**
@@ -756,6 +867,249 @@ public class UnifiedModelFactory {
          */
         public static Message assistant(String content) {
             return new Message("assistant", content);
+        }
+
+        /**
+         * 创建带tool_calls的助手消息
+         */
+        public static Message assistant(String content, List<ToolCall> toolCalls) {
+            return new Message("assistant", content, null, null, toolCalls);
+        }
+
+        /**
+         * 创建带reasoning_content和tool_calls的助手消息
+         */
+        public static Message assistant(String content, String reasoningContent, List<ToolCall> toolCalls) {
+            return new Message("assistant", content, null, reasoningContent, toolCalls);
+        }
+
+        /**
+         * 创建tool类型消息（用于返回工具执行结果）
+         *
+         * @param content    工具执行结果
+         * @param toolCallId 工具调用ID（可选）
+         * @return tool消息
+         */
+        public static Message tool(String content, String toolCallId) {
+            return new Message("tool", content, toolCallId);
+        }
+    }
+
+    /**
+     * ToolCall类（用于assistant消息的tool_calls字段）
+     */
+    @Data
+    @Builder
+    public static class ToolCall {
+        private String id;
+        private String type;
+        private ToolCallFunction function;
+
+        public ToolCall() {
+            this.type = "function";
+        }
+
+        public ToolCall(String id, String type, ToolCallFunction function) {
+            this.id = id;
+            this.type = type;
+            this.function = function;
+        }
+
+        @Data
+        @Builder
+        public static class ToolCallFunction {
+            private String name;
+            private String arguments;
+
+            public ToolCallFunction() {
+            }
+
+            public ToolCallFunction(String name, String arguments) {
+                this.name = name;
+                this.arguments = arguments;
+            }
+        }
+    }
+
+    /**
+     * Tool类（用于Function Calling）
+     */
+    @Data
+    @Builder
+    public static class Tool {
+
+        private String type;
+        private Function function;
+
+        public Tool() {
+            this.type = "function";
+        }
+
+        public static ToolBuilder builder() {
+            return new ToolBuilder();
+        }
+
+        public static class ToolBuilder {
+            private String type = "function";
+            private Function function;
+
+            public ToolBuilder type(String type) {
+                this.type = type;
+                return this;
+            }
+
+            public ToolBuilder function(Function function) {
+                this.function = function;
+                return this;
+            }
+
+            public Tool build() {
+                Tool tool = new Tool();
+                tool.type = this.type;
+                tool.function = this.function;
+                return tool;
+            }
+        }
+
+        @Data
+        @Builder
+        public static class Function {
+            private String name;
+            private String description;
+            private Map<String, Object> parameters;
+
+            public Function() {
+            }
+
+            public static FunctionBuilder builder() {
+                return new FunctionBuilder();
+            }
+
+            public static class FunctionBuilder {
+                private Function function = new Function();
+
+                public FunctionBuilder name(String name) {
+                    function.name = name;
+                    return this;
+                }
+
+                public FunctionBuilder description(String description) {
+                    function.description = description;
+                    return this;
+                }
+
+                public FunctionBuilder parameters(Map<String, Object> parameters) {
+                    function.parameters = parameters;
+                    return this;
+                }
+
+                public Function build() {
+                    return function;
+                }
+            }
+        }
+    }
+
+    /**
+     * 检查响应是否为function_call
+     */
+    public static boolean isFunctionCallResponse(String response) {
+        if (response == null || response.isEmpty()) {
+            return false;
+        }
+        return response.contains("\"type\":\"function_call\"") || response.contains("\"type\": \"function_call\"");
+    }
+
+    /**
+     * 从响应中提取函数名称
+     */
+    public static String extractFunctionName(String response) {
+        try {
+            if (!isFunctionCallResponse(response)) {
+                return null;
+            }
+            // 简单解析JSON获取name字段
+            int nameStart = response.indexOf("\"name\":\"");
+            if (nameStart == -1) {
+                nameStart = response.indexOf("\"name\": \"");
+            }
+            if (nameStart == -1) {
+                return null;
+            }
+            nameStart += 8;
+            int nameEnd = response.indexOf("\"", nameStart);
+            if (nameEnd == -1) {
+                return null;
+            }
+            return response.substring(nameStart, nameEnd);
+        } catch (Exception e) {
+            log.error("提取函数名称失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 从响应中提取函数参数
+     */
+    public static String extractFunctionArguments(String response) {
+        try {
+            if (!isFunctionCallResponse(response)) {
+                return null;
+            }
+            // 使用Jackson解析JSON获取arguments字段
+            JsonNode root = STATIC_MAPPER.readTree(response);
+            JsonNode argumentsNode = root.path("arguments");
+            if (argumentsNode.isMissingNode()) {
+                return null;
+            }
+            // 支持 arguments 是对象或字符串
+            if (argumentsNode.isObject()) {
+                return argumentsNode.toString();
+            }
+            return argumentsNode.asText();
+        } catch (Exception e) {
+            log.error("提取函数参数失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 从响应中提取tool_call_id
+     */
+    public static String extractToolCallId(String response) {
+        try {
+            if (!isFunctionCallResponse(response)) {
+                return null;
+            }
+            JsonNode root = STATIC_MAPPER.readTree(response);
+            JsonNode toolCallIdNode = root.path("tool_call_id");
+            if (!toolCallIdNode.isMissingNode()) {
+                return toolCallIdNode.asText();
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("提取tool_call_id失败", e);
+            return null;
+        }
+    }
+
+    /**
+     * 从响应中提取reasoning_content
+     */
+    public static String extractReasoningContent(String response) {
+        try {
+            if (!isFunctionCallResponse(response)) {
+                return null;
+            }
+            JsonNode root = STATIC_MAPPER.readTree(response);
+            JsonNode reasoningContentNode = root.path("reasoning_content");
+            if (!reasoningContentNode.isMissingNode()) {
+                return reasoningContentNode.asText();
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("提取reasoning_content失败", e);
+            return null;
         }
     }
 

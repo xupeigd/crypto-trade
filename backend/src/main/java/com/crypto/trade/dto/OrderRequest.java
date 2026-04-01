@@ -91,4 +91,14 @@ public class OrderRequest {
      * 是否绕过风控
      */
     private boolean bypassRiskControl;
+
+    /**
+     * 智能体ID（用于执行模式优先级判断）
+     */
+    private Long agentId;
+
+    /**
+     * 风控配置ID（AI交易配置ID，用于执行模式优先级判断）
+     */
+    private Long riskControlId;
 }

@@ -260,7 +260,7 @@ const EquityMiniChart: React.FC<EquityMiniChartProps> = ({apiKeyId, onDataLoad})
 
             // 权益值
             ctx.fillStyle = '#52c41a';
-            ctx.fillText(`权益: ${equity.toFixed(2)} USDT`, tooltipX + tooltipPadding, tooltipY + tooltipPadding + 20);
+            ctx.fillText(`权益: ${equity.toFixed(2)} ₮`, tooltipX + tooltipPadding, tooltipY + tooltipPadding + 20);
         }
     };
 

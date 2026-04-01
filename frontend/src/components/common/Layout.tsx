@@ -13,10 +13,12 @@ import {
     KeyOutlined,
     LeftOutlined,
     LineChartOutlined,
+    PlayCircleOutlined,
     RightOutlined,
     RobotOutlined,
     SecurityScanOutlined,
     SettingOutlined,
+    ThunderboltOutlined,
 } from '@ant-design/icons';
 import FloatingToggleButton from './FloatingToggleButton';
 import {useMenuMode} from '../../contexts/MenuModeContext';
@@ -95,6 +97,16 @@ const Layout: React.FC<LayoutProps> = ({children}) => {
             label: '大模型配置',
         },
         {
+            key: '/system/skill-configs',
+            icon: <ThunderboltOutlined/>,
+            label: '技能配置管理',
+        },
+        {
+            key: '/system/agent-configs',
+            icon: <RobotOutlined/>,
+            label: '智能体配置',
+        },
+        {
             key: '/system/tasks',
             icon: <ClockCircleOutlined/>,
             label: '定时任务管理',
@@ -113,6 +125,31 @@ const Layout: React.FC<LayoutProps> = ({children}) => {
             key: '/system/proxy',
             icon: <GlobalOutlined/>,
             label: '代理服务器配置',
+        },
+        {
+            key: '/system/cex-proxy-bindings',
+            icon: <GlobalOutlined/>,
+            label: '交易所代理绑定',
+        },
+        {
+            key: '/system/freqtrade-config',
+            icon: <SettingOutlined/>,
+            label: 'Freqtrade配置',
+        },
+        {
+            key: '/system/strategy-config',
+            icon: <SettingOutlined/>,
+            label: '策略配置',
+        },
+        {
+            key: '/system/strategy-execution',
+            icon: <PlayCircleOutlined/>,
+            label: '策略执行',
+        },
+        {
+            key: '/system/backtest',
+            icon: <HistoryOutlined/>,
+            label: '策略回测',
         },
         {
             key: '/system/executions',

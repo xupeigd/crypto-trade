@@ -1,5 +1,6 @@
 package com.crypto.trade.model.request;
 
+import com.crypto.trade.dto.AttentionInfo;
 import com.crypto.trade.model.PositionModel;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
@@ -67,5 +68,10 @@ public class BotCallModelRequest {
      */
     @JsonProperty("balanceSnapshotId")
     private Long balanceSnapshotId;
+    /**
+     * ATTENTION信息列表（用于Attention触发时传递）
+     */
+    @JsonProperty("attentions")
+    private List<AttentionInfo> attentions;
 
 }

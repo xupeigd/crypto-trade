@@ -375,4 +375,26 @@ public class CexPositionAdapter {
                 .map(CexPositionAdapter::toPositionModel)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * 批量转换CexPosition列表为PositionModel列表（带vendor）
+     *
+     * @param cexPositions CEX持仓对象列表
+     * @param vendor       交易所名称
+     * @return PositionModel列表
+     */
+    public static List<PositionModel> toPositionModelList(List<CexPosition> cexPositions, String vendor) {
+        if (CollectionUtils.isEmpty(cexPositions)) {
+            return Collections.emptyList();
+        }
+
+        return cexPositions.stream()
+                .filter(Objects::nonNull)
+                .map(pos -> {
+                    PositionModel model = toPositionModel(pos);
+                    model.setVendor(vendor);
+                    return model;
+                })
+                .collect(Collectors.toList());
+    }
 }

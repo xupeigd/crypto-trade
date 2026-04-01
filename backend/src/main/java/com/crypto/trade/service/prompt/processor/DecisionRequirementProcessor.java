@@ -96,6 +96,28 @@ public class DecisionRequirementProcessor
                 content.append("请以Markdown格式提供详细的交易决策分析。\n");
             }
 
+            // 止盈止损操作说明
+            content.append("\n");
+            content.append("### 止盈止损操作说明\n");
+            content.append("\n");
+            content.append("**HOLD动作可以用于设置或修改持仓的止盈止损：**\n");
+            content.append("\n");
+            content.append("当需要为持仓设置或调整止盈止损时，使用HOLD动作：\n");
+            content.append("```json\n");
+            content.append("{\n");
+            content.append("  \"action\": \"HOLD\",\n");
+            content.append("  \"instId\": \"BTC-USDT-SWAP\",   // 合约ID（必填）\n");
+            content.append("  \"posSide\": \"long\",           // 仓位方向: long/short（必填）\n");
+            content.append("  \"takeProfit\": 75000,          // 新止盈价格（可选，至少提供一个）\n");
+            content.append("  \"stopLoss\": 60000,            // 新止损价格（可选，至少提供一个）\n");
+            content.append("  \"confidence\": 80,\n");
+            content.append("  \"reasoning\": \"调整止盈止损原因\"\n");
+            content.append("}\n");
+            content.append("```\n");
+            content.append("- 系统会自动判断是修改已有止盈止损，还是新建止盈止损\n");
+            content.append("- takeProfit和stopLoss至少提供一个\n");
+            content.append("- 查看持仓表格中的止盈价/止损价列了解当前状态\n");
+
             content.append("\n");
             content.append("请确保决策合理，风险可控。\n");
 

@@ -158,4 +158,29 @@ public class ApiKeyController {
         }
     }
 
+    /**
+     * 获取用于编辑的密钥数据
+     * ENV存储：返回原始环境变量名
+     * DB存储：敏感字段返回null（前端留空，用户不填则不覆盖）
+     */
+    @GetMapping("/{id}/edit")
+    public ApiResponse<ApiKeyDecryptedModel> getKeyForEdit(@PathVariable Long id) {
+        try {
+            log.debug("获取编辑用密钥数据 - KeyId: {}", id);
+            ApiKeyDecryptedModel keyModel = apiKeyService.getKeyForEdit(id);
+            if (null == keyModel) {
+                return ApiResponse.fail("密钥不存在");
+            }
+            log.debug("编辑用密钥数据获取成功 - KeyId: {}, CEX: {}, StorageType: {}",
+                    id, keyModel.getCexName(), keyModel.getStorageType());
+            return ApiResponse.ok(keyModel);
+        } catch (IllegalArgumentException e) {
+            log.warn("获取编辑用密钥数据失败 - KeyId: {}, 错误: {}", id, e.getMessage());
+            return ApiResponse.fail("获取失败: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("获取编辑用密钥数据失败 - KeyId: {}", id, e);
+            return ApiResponse.fail("获取失败: 系统错误");
+        }
+    }
+
 }

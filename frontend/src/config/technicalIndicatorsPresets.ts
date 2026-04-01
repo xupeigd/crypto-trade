@@ -34,7 +34,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 8},
             RSI: {period: 14},
             BOLL: {period: 20, stdDev: 2},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '🚀',
         color: '#ff4d4f'
@@ -51,7 +56,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 15},
             RSI: {period: 9},
             BOLL: {period: 15, stdDev: 1.5},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '⚡',
         color: '#fa8c16'
@@ -70,7 +80,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 25},
             RSI: {period: 14},
             BOLL: {period: 20, stdDev: 2},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '⚖️',
         color: '#1890ff'
@@ -87,7 +102,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 40},
             RSI: {period: 21},
             BOLL: {period: 25, stdDev: 2.2},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '📈',
         color: '#52c41a'
@@ -106,7 +126,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 60},
             RSI: {period: 30},
             BOLL: {period: 50, stdDev: 2.5},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '🏛️',
         color: '#722ed1'
@@ -123,7 +148,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 60},
             RSI: {period: 50},
             BOLL: {period: 60, stdDev: 3},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '💼',
         color: '#13c2c2'
@@ -141,8 +171,13 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             SMA: {period: 60},
             WMA: {period: 60},
             RSI: {period: 14},
-            BOLL: {period: 20, stdDev: 2},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            BOLL: {period: 50, stdDev: 2.5},
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '✨',
         color: '#fadb14'
@@ -159,7 +194,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 30},
             RSI: {period: 14},
             BOLL: {period: 20, stdDev: 2},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '🔄',
         color: '#cf1322'
@@ -178,7 +218,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 30},
             RSI: {period: 21},
             BOLL: {period: 30, stdDev: 2.2},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '📊',
         color: '#1890ff'
@@ -195,7 +240,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 45},
             RSI: {period: 28},
             BOLL: {period: 40, stdDev: 2.5},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '🎯',
         color: '#52c41a'
@@ -214,7 +264,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 4},
             RSI: {period: 7},
             BOLL: {period: 10, stdDev: 1},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '⚡',
         color: '#ff4d4f'
@@ -231,7 +286,12 @@ export const TECHNICAL_INDICATOR_PRESETS: IndicatorPreset[] = [
             WMA: {period: 18},
             RSI: {period: 21},
             BOLL: {period: 20, stdDev: 1.8},
-            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9}
+            MACD: {period: 12, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9},
+            KDJ: {period: 9},
+            CCI: {period: 14},
+            ATR: {period: 14},
+            OBV: {period: 1},
+            ADX: {period: 14}
         },
         icon: '🔄',
         color: '#fa8c16'

@@ -2,17 +2,26 @@ package com.crypto.trade.service.conversation;
 
 import com.crypto.trade.config.AiTradingRiskControlConfig;
 import com.crypto.trade.dto.OrderRequest;
+import com.crypto.trade.dto.cex.model.CexAlgoOrder;
 import com.crypto.trade.dto.cex.model.CexOrder;
+import com.crypto.trade.dto.cex.request.CexAlgoOrderRequest;
+import com.crypto.trade.dto.cex.request.CexAmendAlgoOrderRequest;
+import com.crypto.trade.dto.cex.response.CexAlgoOrderOperationResponse;
+import com.crypto.trade.dto.cex.response.CexAlgoOrderResponse;
 import com.crypto.trade.dto.common.TradingResult;
 import com.crypto.trade.entity.ApiKey;
+import com.crypto.trade.entity.AttentionQueue;
 import com.crypto.trade.entity.TradeAction;
 import com.crypto.trade.enums.OpenCloseType;
 import com.crypto.trade.repository.TradeActionRepository;
+import com.crypto.trade.service.AttentionQueueService;
 import com.crypto.trade.service.TradingOrderService;
+import com.crypto.trade.service.UnifiedTradingService;
 import com.crypto.trade.service.cex.ApiKeyService;
 import com.crypto.trade.service.cex.UnifiedCexApiService;
 import com.crypto.trade.service.market.UnifiedPriceDataService;
 import com.crypto.trade.service.trading.PositionHandler;
+import org.springframework.util.CollectionUtils;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -38,11 +47,13 @@ public class TradeActionProcessor {
     private final TradingOrderService tradingOrderService;
     private final TradingConfigProperties config;
     private final UnifiedCexApiService unifiedCexApiService;
+    private final UnifiedTradingService unifiedTradingService;
     private final AiTradingRiskControlConfig aiTradingRiskControlConfig;
     private final PositionHandler positionHandler;
     private final UnifiedPriceDataService priceDataService;
     private final ApiKeyService apiKeyService;
     private final TradeActionRepository tradeActionRepository;
+    private final AttentionQueueService attentionQueueService;
 
     /**
      * 处理交易动作
@@ -103,6 +114,47 @@ public class TradeActionProcessor {
                     TradeExecutionResult result = executeCancelOrderAction(action, apiKeyId);
                     results.add(result);
                     logExecutionResult(result);
+                    continue;
+                }
+
+                // 处理HOLD动作 - 设置/修改止盈止损
+                if ("HOLD".equalsIgnoreCase(actionType)) {
+                    if (action.getTakeProfit() != null || action.getStopLoss() != null) {
+                        log.info("【止盈止损】检测到HOLD动作设置止盈止损 - instId: {}, posSide: {}, takeProfit: {}, stopLoss: {}",
+                                action.getInstId(), action.getPosSide(), action.getTakeProfit(), action.getStopLoss());
+
+                        TradeExecutionResult result = executeSetStopLoss(action, apiKeyId);
+                        results.add(result);
+                        logExecutionResult(result);
+                    } else {
+                        log.debug("【HOLD动作】无止盈止损参数，跳过处理 - instId: {}", action.getInstId());
+                    }
+                    continue;
+                }
+
+                // 处理ATTENTION动作 - 保存到关注队列
+                if ("ATTENTION".equalsIgnoreCase(actionType)) {
+                    log.info("【ATTENTION】检测到关注动作 - instId: {}, timeframe: {}, priority: {}",
+                            action.getInstId(), action.getTimeframe(), action.getPriority());
+
+                    try {
+                        attentionQueueService.save(AttentionQueue.builder()
+                                .recordId(action.getRecordId())
+                                .apiKeyId(apiKeyId)
+                                .instId(action.getInstId())
+                                .priority(action.getPriority())
+                                .timeframe(action.getTimeframe())
+                                .queryLimit(action.getLimit())
+                                .expectedTriggerTime(attentionQueueService.calculateNextTriggerTime(action.getPriority()))
+                                .status("PENDING")
+                                .build());
+
+                        log.info("【ATTENTION】已保存关注记录 - instId: {}, recordId: {}",
+                                action.getInstId(), action.getRecordId());
+                    } catch (Exception e) {
+                        log.error("【ATTENTION】保存关注记录失败 - instId: {}, 错误: {}",
+                                action.getInstId(), e.getMessage(), e);
+                    }
                     continue;
                 }
 
@@ -1087,6 +1139,287 @@ public class TradeActionProcessor {
         log.info("【交易验证通过】instId: {}, action: {}, confidence: {}, quantity: {}, openClose: {}",
                 action.getInstId(), action.getAction(), confidence, quantity, action.getOpenClose());
         return TradeValidationResult.valid();
+    }
+
+    // ==================== 止盈止损操作相关方法 ====================
+
+    /**
+     * 执行设置/修改止盈止损操作
+     * <p>
+     * 根据仓位是否已有止盈止损，自动判断是修改还是新建：
+     * - 已有止盈止损算法订单 → 调用修改接口
+     * - 无止盈止损算法订单 → 调用新建接口
+     * </p>
+     *
+     * @param action   解析的动作
+     * @param apiKeyId API Key ID
+     * @return 执行结果
+     */
+    private TradeExecutionResult executeSetStopLoss(ActionParser.ParsedAction action, Long apiKeyId) {
+        long startTime = System.currentTimeMillis();
+
+        try {
+            // 1. 参数验证
+            if (action.getInstId() == null || action.getInstId().trim().isEmpty()) {
+                return TradeExecutionResult.failure(null, "HOLD",
+                        "合约代码(instId)不能为空", System.currentTimeMillis() - startTime);
+            }
+            if (action.getPosSide() == null || action.getPosSide().trim().isEmpty()) {
+                return TradeExecutionResult.failure(action.getInstId(), "HOLD",
+                        "仓位方向(posSide)不能为空", System.currentTimeMillis() - startTime);
+            }
+            if (action.getTakeProfit() == null && action.getStopLoss() == null) {
+                return TradeExecutionResult.failure(action.getInstId(), "HOLD",
+                        "止盈价格和止损价格至少需要提供一个", System.currentTimeMillis() - startTime);
+            }
+
+            // 2. 模拟模式
+            if (config.isDryRunMode()) {
+                return executeDryRunSetStopLoss(action, startTime);
+            }
+
+            // 3. 获取API Key
+            ApiKey apiKey = apiKeyService.getDecryptedKey(apiKeyId);
+            if (apiKey == null) {
+                return TradeExecutionResult.failure(action.getInstId(), "HOLD",
+                        "API Key不存在", System.currentTimeMillis() - startTime);
+            }
+
+            // 4. 查询该仓位的止盈止损算法订单
+            String algoId = findStopLossAlgoId(apiKey, action.getInstId(), action.getPosSide());
+
+            // 5. 根据是否有algoId判断是修改还是新建
+            if (algoId != null && !algoId.trim().isEmpty()) {
+                // 有止盈止损 → 修改
+                log.info("【止盈止损】修改已有止盈止损 - instId: {}, posSide: {}, algoId: {}",
+                        action.getInstId(), action.getPosSide(), algoId);
+                return amendStopLoss(apiKey, action, algoId, startTime);
+            } else {
+                // 无止盈止损 → 新建
+                log.info("【止盈止损】新建止盈止损 - instId: {}, posSide: {}",
+                        action.getInstId(), action.getPosSide());
+                return createStopLoss(apiKey, action, startTime);
+            }
+
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            log.error("【止盈止损】执行失败 - instId: {}, posSide: {}",
+                    action.getInstId(), action.getPosSide(), e);
+            return TradeExecutionResult.failure(action.getInstId(), "HOLD",
+                    "执行异常: " + e.getMessage(), executionTime);
+        }
+    }
+
+    /**
+     * 查询仓位的止盈止损算法订单ID
+     * <p>
+     * 根据instId和posSide匹配算法订单列表，查找止盈止损类型的订单。
+     * </p>
+     *
+     * @param apiKey  API密钥
+     * @param instId  合约ID
+     * @param posSide 仓位方向 (long/short)
+     * @return 算法订单ID，未找到返回null
+     */
+    private String findStopLossAlgoId(ApiKey apiKey, String instId, String posSide) {
+        try {
+            // 获取算法订单列表
+            CexAlgoOrderResponse algoResponse = unifiedTradingService.getAlgoOrders(apiKey, "SWAP");
+
+            if (algoResponse == null || CollectionUtils.isEmpty(algoResponse.getAlgoOrders())) {
+                log.debug("【止盈止损查询】无算法订单 - instId: {}", instId);
+                return null;
+            }
+
+            // 遍历查找匹配的止盈止损订单
+            for (CexAlgoOrder algoOrder : algoResponse.getAlgoOrders()) {
+                // 匹配合约和仓位方向
+                if (instId.equals(algoOrder.getSymbol())
+                        && posSide.equalsIgnoreCase(algoOrder.getPosSide())) {
+                    // 检查是否为止盈止损类型订单（OCO、止盈、止损）
+                    if (algoOrder.isOco() || algoOrder.isTakeProfit() || algoOrder.isStopLoss()) {
+                        // 检查订单数量是否有效（排除已取消或完成的订单）
+                        if (algoOrder.getQuantity() != null
+                                && algoOrder.getQuantity().compareTo(BigDecimal.ZERO) > 0) {
+                            log.debug("【止盈止损查询】找到匹配订单 - instId: {}, posSide: {}, algoId: {}, type: {}",
+                                    instId, posSide, algoOrder.getAlgoId(), algoOrder.getOrderType());
+                            return algoOrder.getAlgoId();
+                        }
+                    }
+                }
+            }
+
+            log.debug("【止盈止损查询】未找到匹配订单 - instId: {}, posSide: {}", instId, posSide);
+            return null;
+
+        } catch (Exception e) {
+            log.warn("【止盈止损查询】查询失败 - instId: {}, posSide: {}", instId, posSide, e);
+            return null;
+        }
+    }
+
+    /**
+     * 修改已有止盈止损
+     *
+     * @param apiKey    API密钥
+     * @param action    解析的动作
+     * @param algoId    算法订单ID
+     * @param startTime 开始时间
+     * @return 执行结果
+     */
+    private TradeExecutionResult amendStopLoss(ApiKey apiKey, ActionParser.ParsedAction action,
+                                               String algoId, long startTime) {
+        try {
+            // 构建修改请求
+            CexAmendAlgoOrderRequest.CexAmendAlgoOrderRequestBuilder builder = CexAmendAlgoOrderRequest.builder()
+                    .algoId(algoId)
+                    .symbol(action.getInstId());
+
+            // 设置新的止盈触发价
+            if (action.getTakeProfit() != null) {
+                builder.newTakeProfitTriggerPrice(action.getTakeProfit().toPlainString())
+                        .newTakeProfitOrderPrice("-1")  // 市价单
+                        .newTakeProfitTriggerPriceType("last");
+            }
+
+            // 设置新的止损触发价
+            if (action.getStopLoss() != null) {
+                builder.newStopLossTriggerPrice(action.getStopLoss().toPlainString())
+                        .newStopLossOrderPrice("-1")  // 市价单
+                        .newStopLossTriggerPriceType("last");
+            }
+
+            // 调用修改接口
+            CexAlgoOrderOperationResponse response = unifiedTradingService.amendAlgoOrder(apiKey, builder.build());
+
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            if (response != null && Boolean.TRUE.equals(response.isSuccess())) {
+                log.info("【止盈止损】修改成功 - instId: {}, algoId: {}, takeProfit: {}, stopLoss: {}",
+                        action.getInstId(), algoId, action.getTakeProfit(), action.getStopLoss());
+                return TradeExecutionResult.success(
+                        action.getInstId(),
+                        "HOLD",
+                        algoId,
+                        null,
+                        null,
+                        executionTime,
+                        false
+                );
+            } else {
+                String errorMsg = response != null ? response.getErrorMessage() : "修改止盈止损失败";
+                log.error("【止盈止损】修改失败 - instId: {}, algoId: {}, error: {}",
+                        action.getInstId(), algoId, errorMsg);
+                return TradeExecutionResult.failure(action.getInstId(), "HOLD", errorMsg, executionTime);
+            }
+
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            log.error("【止盈止损】修改异常 - instId: {}, algoId: {}", action.getInstId(), algoId, e);
+            return TradeExecutionResult.failure(action.getInstId(), "HOLD",
+                    "修改异常: " + e.getMessage(), executionTime);
+        }
+    }
+
+    /**
+     * 新建止盈止损
+     *
+     * @param apiKey    API密钥
+     * @param action    解析的动作
+     * @param startTime 开始时间
+     * @return 执行结果
+     */
+    private TradeExecutionResult createStopLoss(ApiKey apiKey, ActionParser.ParsedAction action, long startTime) {
+        try {
+            // 根据仓位方向确定订单方向
+            // long仓位止盈止损 -> sell订单（平多）
+            // short仓位止盈止损 -> buy订单（平空）
+            String side = "long".equalsIgnoreCase(action.getPosSide()) ? "sell" : "buy";
+
+            // 构建新建请求
+            CexAlgoOrderRequest.CexAlgoOrderRequestBuilder builder = CexAlgoOrderRequest.builder()
+                    .symbol(action.getInstId())
+                    .tradeMode("cross")  // 全仓模式
+                    .currency("USDT")
+                    .side(side)
+                    .positionSide(action.getPosSide().toLowerCase())
+                    .closeFraction("1")  // 全部平仓
+                    .cancelOnClosePosition(true)
+                    .reduceOnly(true)
+                    .orderType("oco");  // OCO订单类型
+
+            // 设置止盈
+            if (action.getTakeProfit() != null) {
+                builder.takeProfitTriggerPrice(action.getTakeProfit().toPlainString())
+                        .takeProfitOrderPrice("-1")  // 市价单
+                        .takeProfitTriggerPriceType("last");
+            }
+
+            // 设置止损
+            if (action.getStopLoss() != null) {
+                builder.stopLossTriggerPrice(action.getStopLoss().toPlainString())
+                        .stopLossOrderPrice("-1")  // 市价单
+                        .stopLossTriggerPriceType("last");
+            }
+
+            // 调用新建接口
+            CexAlgoOrderOperationResponse response = unifiedTradingService.setAlgoOrder(apiKey, builder.build());
+
+            long executionTime = System.currentTimeMillis() - startTime;
+
+            if (response != null && Boolean.TRUE.equals(response.isSuccess())) {
+                log.info("【止盈止损】新建成功 - instId: {}, posSide: {}, takeProfit: {}, stopLoss: {}, algoId: {}",
+                        action.getInstId(), action.getPosSide(), action.getTakeProfit(),
+                        action.getStopLoss(), response.getAlgoId());
+                return TradeExecutionResult.success(
+                        action.getInstId(),
+                        "HOLD",
+                        response.getAlgoId(),
+                        null,
+                        null,
+                        executionTime,
+                        false
+                );
+            } else {
+                String errorMsg = response != null ? response.getErrorMessage() : "新建止盈止损失败";
+                log.error("【止盈止损】新建失败 - instId: {}, posSide: {}, error: {}",
+                        action.getInstId(), action.getPosSide(), errorMsg);
+                return TradeExecutionResult.failure(action.getInstId(), "HOLD", errorMsg, executionTime);
+            }
+
+        } catch (Exception e) {
+            long executionTime = System.currentTimeMillis() - startTime;
+            log.error("【止盈止损】新建异常 - instId: {}, posSide: {}", action.getInstId(), action.getPosSide(), e);
+            return TradeExecutionResult.failure(action.getInstId(), "HOLD",
+                    "新建异常: " + e.getMessage(), executionTime);
+        }
+    }
+
+    /**
+     * 模拟执行设置止盈止损
+     *
+     * @param action    解析的动作
+     * @param startTime 开始时间
+     * @return 模拟执行结果
+     */
+    private TradeExecutionResult executeDryRunSetStopLoss(ActionParser.ParsedAction action, long startTime) {
+        String message = String.format(
+                "【止盈止损-模拟执行】验证通过\n" +
+                        "  合约: %s\n" +
+                        "  仓位方向: %s\n" +
+                        "  止盈价格: %s\n" +
+                        "  止损价格: %s\n" +
+                        "  置信度: %d%%\n" +
+                        "  注意：当前为模拟模式，未真实设置止盈止损",
+                action.getInstId(),
+                action.getPosSide(),
+                action.getTakeProfit() != null ? action.getTakeProfit() : "不修改",
+                action.getStopLoss() != null ? action.getStopLoss() : "不修改",
+                action.getConfidence() != null ? action.getConfidence() : 0
+        );
+
+        log.info(message);
+        return TradeExecutionResult.dryRun(action.getInstId(), "HOLD", message);
     }
 
     /**

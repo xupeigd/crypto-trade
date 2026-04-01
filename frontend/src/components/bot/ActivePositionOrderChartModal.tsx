@@ -1,10 +1,32 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Checkbox, Modal, Segmented, Spin, Typography} from 'antd';
-import {CandlestickData, COLORS} from '../../pages/trading/components/CandlestickChart';
-import {klineBarsFromCandles, KLineChart} from '../charts/KLineChart';
+import {CandlestickData} from '../../pages/trading/components/CandlestickChart';
+import {klineBarsFromCandles} from '../charts/KLineChart';
+import LightweightCandlestickChart from '../charts/LightweightCandlestickChart';
 import {TechnicalIndicatorData, tradingService} from '../../services/tradingService';
 
 const {Text} = Typography;
+
+/**
+ * 技术指标颜色常量（与LightweightCandlestickChart.tsx中实际使用的颜色保持一致）
+ * EMA/RSI 不同周期按升序取对应颜色数组中的颜色
+ * KDJ 不同周期取对应色系的 K 线颜色作为代表色
+ */
+const INDICATOR_COLORS = {
+    // EMA 各周期颜色（按升序：12→index0，26→index1）
+    EMA: ['#1890ff', '#00b4d8'],
+    // RSI 各周期颜色（按升序：9→index0，14→index1）
+    RSI: ['#9254de', '#d46b08'],
+    // BOLL 三轨颜色（上轨红、中轨黄、下轨绿）
+    BOLL_UPPER: '#f5222d',
+    BOLL_MIDDLE: '#faad14',
+    BOLL_LOWER: '#52c41a',
+    // MACD DIF/DEA 颜色
+    MACD_DIF: '#fa541c',
+    MACD_DEA: '#722ed1',
+    // KDJ 各周期 K 线颜色（作为该周期的代表色，按升序：9→index0，14→index1，21→index2）
+    KDJ_K: ['#fa8c16', '#13c2c2', '#eb2f96'],
+} as const;
 
 const normalizeTimestampMs = (value: unknown): number | undefined => {
     const num = typeof value === 'number' ? value : Number(value);
@@ -19,6 +41,73 @@ const normalizeNumber = (value: unknown): number | undefined => {
     const num = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(num)) return undefined;
     return num;
+};
+
+const transformIndicatorsForChart = (rawIndicators: Record<string, any> | undefined) => {
+    if (!rawIndicators) return undefined;
+
+    const result: Record<string, Array<{
+        time: number;
+        value?: number;
+        upper?: number;
+        middle?: number;
+        lower?: number;
+        diff?: number;
+        signal?: number;
+        histogram?: number;
+        k?: number;
+        d?: number;
+        j?: number;
+    }>> = {};
+
+    Object.entries(rawIndicators).forEach(([key, indicator]) => {
+        const values = indicator?.data?.values || indicator?.values;
+        if (!values || !Array.isArray(values)) return;
+
+        values.forEach((v: any) => {
+            const multiPeriod = v.multiPeriodValues;
+            if (!multiPeriod) return;
+
+            Object.entries(multiPeriod).forEach(([periodKey, periodData]: [string, any]) => {
+                const seriesKey = `${key}_${periodKey}`;
+
+                if (key === 'MACD') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        diff: periodData.diff,
+                        signal: periodData.dea,
+                        histogram: periodData.macd,
+                    });
+                } else if (key === 'BOLL') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        upper: periodData.upper,
+                        middle: periodData.middle,
+                        lower: periodData.lower,
+                    });
+                } else if (key === 'KDJ') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        k: periodData.k,
+                        d: periodData.d,
+                        j: periodData.j,
+                    });
+                } else {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        value: periodData,
+                    });
+                }
+            });
+        });
+    });
+
+    Object.values(result).forEach(arr => arr.sort((a, b) => a.time - b.time));
+    return result;
 };
 
 export type ActiveChartItem =
@@ -63,8 +152,10 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
     const [currentLimit, setCurrentLimit] = useState<SampleSize>(120);
     const [manualLimit, setManualLimit] = useState<SampleSize | undefined>(undefined);
     const [currentEntryCandleTime, setCurrentEntryCandleTime] = useState<number | undefined>(undefined);
-    const [reverseOrder, setReverseOrder] = useState<boolean>(true);
     const [showTPSL, setShowTPSL] = useState<boolean>(false);
+    const [showAvgPx, setShowAvgPx] = useState<boolean>(true);
+    const [tpslReloadKey, setTpslReloadKey] = useState<number>(0);
+    const [paneReloadKey, setPaneReloadKey] = useState<number>(0);
     const [indicators, setIndicators] = useState<Record<string, TechnicalIndicatorData> | undefined>(undefined);
     const [visibleIndicators, setVisibleIndicators] = useState<Record<string, boolean>>({
         'EMA_12': true,
@@ -77,7 +168,37 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
         'KDJ_14': true,
         'KDJ_21': true,
     });
+    // 支撑&阻力线状态
+    const [showPivotPoints, setShowPivotPoints] = useState<boolean>(false);
+    const [pivotPointsData, setPivotPointsData] = useState<{
+        pivot: number;
+        periodStartTime: number;
+        supports: Array<{price: number; basedOn: string; basedTime: number}>;
+        resistances: Array<{price: number; basedOn: string; basedTime: number}>;
+    } | null>(null);
+    const [loadingPivot, setLoadingPivot] = useState<boolean>(false);
+
     const bars = useMemo(() => klineBarsFromCandles(chartData), [chartData]);
+
+    // 获取 Pivot Points 数据
+    const fetchPivotPoints = async () => {
+        if (!item?.instId || loadingPivot) return;
+        setLoadingPivot(true);
+        try {
+            const data = await tradingService.getPivotPoints({
+                instId: item.instId,
+                timeframe: currentTimeFrame,
+                limit: currentLimit,
+                apiKeyId,
+            });
+            setPivotPointsData(data);
+            setShowPivotPoints(true);
+        } catch (e) {
+            console.error('获取Pivot Points失败:', e);
+        } finally {
+            setLoadingPivot(false);
+        }
+    };
 
     const toggleIndicator = (key: string, checked: boolean) => {
         setVisibleIndicators(prev => ({
@@ -85,6 +206,20 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
             [key]: checked
         }));
     };
+
+    // 监听副图指标变化，当所有副图指标（MACD, KDJ, RSI）都取消后，强制重新创建图表以清除空白副图
+    useEffect(() => {
+        const hasOscillator = Object.keys(visibleIndicators).some(key => {
+            if (!visibleIndicators[key]) return false;
+            const baseType = key.split('_')[0];
+            return ['MACD', 'KDJ', 'RSI'].includes(baseType);
+        });
+
+        // 如果没有副图指标，递增key强制重新创建图表
+        if (!hasOscillator) {
+            setPaneReloadKey(k => k + 1);
+        }
+    }, [visibleIndicators]);
 
     useEffect(() => {
         if (visible && item && item.instId && apiKeyId) {
@@ -232,13 +367,51 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
     const takeProfitPx = totalTakeProfitPx ?? algoTakeProfitPx ?? strategyTakeProfitPx;
     const stopLossPx = totalStopLossPx ?? algoStopLossPx ?? strategyStopLossPx;
     const hasTPSL = takeProfitPx !== undefined || stopLossPx !== undefined;
+
     const posSide = item?.posSide || 'long';
+
+    const tpslReferenceLines = useMemo(() => {
+        const result = {
+            avgPx: referencePrice,      // 开仓均价
+            cTime: openTimeMs,           // 开仓时间（毫秒）
+            takeProfitPx: showTPSL ? takeProfitPx : undefined,
+            stopLossPx: showTPSL ? stopLossPx : undefined,
+            posSide: posSide,
+            // 支撑阻力线（带时间范围）- 周期开始时间到 basedTime
+            supportLines: showPivotPoints && pivotPointsData?.supports
+                ? pivotPointsData.supports.map((s, index) => ({
+                    price: s.price,
+                    startTime: pivotPointsData.periodStartTime,  // 周期开始时间
+                    endTime: s.basedTime,  // basedTime 作为结束时间
+                    label: `S${index + 1}`  // 标签 S1, S2, S3
+                }))
+                : undefined,
+            resistanceLines: showPivotPoints && pivotPointsData?.resistances
+                ? pivotPointsData.resistances.map((r, index) => ({
+                    price: r.price,
+                    startTime: pivotPointsData.periodStartTime,  // 周期开始时间
+                    endTime: r.basedTime,  // basedTime 作为结束时间
+                    label: `R${index + 1}`  // 标签 R1, R2, R3
+                }))
+                : undefined,
+        };
+        console.log('[TP/SL ReferenceLines] showTPSL:', showTPSL, 'showPivotPoints:', showPivotPoints, 'result:', result);
+        return result;
+    }, [showTPSL, takeProfitPx, stopLossPx, posSide, referencePrice, openTimeMs, showPivotPoints, pivotPointsData]);
 
     useEffect(() => {
         if (!hasTPSL) {
             setShowTPSL(false);
         }
     }, [hasTPSL]);
+
+    // 时间帧或采样率变化时，重新获取 pivot points（如果已开启）
+    useEffect(() => {
+        if (showPivotPoints && item?.instId && apiKeyId) {
+            setPivotPointsData(null);
+            fetchPivotPoints();
+        }
+    }, [currentTimeFrame, currentLimit]);
 
     return (
         <Modal
@@ -296,19 +469,6 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
                         />
                         <Segmented
                             size="small"
-                            value={reverseOrder ? 'left' : 'right'}
-                            options={[
-                                {label: '←', value: 'left', disabled: reverseOrder},
-                                {label: '→', value: 'right', disabled: !reverseOrder},
-                            ]}
-                            onChange={(value) => {
-                                const next = value as 'left' | 'right';
-                                setReverseOrder(next === 'left');
-                            }}
-                            style={{marginLeft: 8}}
-                        />
-                        <Segmented
-                            size="small"
                             value={showTPSL ? 'show' : 'hide'}
                             options={[
                                 {label: 'TP/SL', value: 'show'},
@@ -317,6 +477,33 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
                             disabled={!hasTPSL}
                             onChange={(value) => {
                                 setShowTPSL(value === 'show');
+                                setTpslReloadKey(k => k + 1);
+                            }}
+                            style={{marginLeft: 8}}
+                        />
+                        <Segmented
+                            size="small"
+                            value={showAvgPx ? 'show' : 'hide'}
+                            options={[
+                                {label: '开仓', value: 'show'},
+                                {label: 'Hide', value: 'hide'},
+                            ]}
+                            onChange={(value) => setShowAvgPx(value === 'show')}
+                            style={{marginLeft: 8}}
+                        />
+                        <Segmented
+                            size="small"
+                            value={showPivotPoints ? 'show' : 'hide'}
+                            options={[
+                                {label: loadingPivot ? '计算中...' : '支撑&突破', value: 'show'},
+                                {label: 'Hide', value: 'hide'},
+                            ]}
+                            onChange={(value) => {
+                                if (value === 'show' && !pivotPointsData) {
+                                    fetchPivotPoints();
+                                } else {
+                                    setShowPivotPoints(value === 'show');
+                                }
                             }}
                             style={{marginLeft: 8}}
                         />
@@ -344,160 +531,17 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
             ) : chartData.length > 0 ? (
                 <div style={{padding: 16, display: 'flex', gap: 16}}>
                     <div style={{width: 1100, height: 560}}>
-                        <KLineChart
-                            symbol={item?.instId}
-                            period={currentTimeFrame as any}
+                        {/* key 用于在 TP/SL 切换或副图指标清空时强制重新创建图表组件，清除残留的价格线或空白副图 */}
+                        <LightweightCandlestickChart
+                            key={`chart-${showTPSL ? 'show' : 'hide'}-${tpslReloadKey}-${paneReloadKey}`}
                             data={bars}
-                            reverseOrder={reverseOrder}
-                            indicators={indicators}
+                            height={560}
+                            maxVisibleBars={currentLimit}
+                            timeFrame={currentTimeFrame}
+                            indicators={transformIndicatorsForChart(indicators)}
                             visibleIndicators={visibleIndicators}
-                            referenceLines={{
-                                avgPx: referencePrice,
-                                includeAvgPxInRange: item?.type === 'position' || hasTPSL,
-                                entryLabel: item?.type === 'order' ? '委托开仓' : '开仓',
-                                cTime: currentEntryCandleTime,
-                                takeProfitPx: showTPSL ? takeProfitPx : undefined,
-                                stopLossPx: showTPSL ? stopLossPx : undefined,
-                                posSide
-                            }}
-                            renderTooltipExtra={({candle, referenceLines}) => {
-                            if (!item || !referenceLines?.cTime || candle.timestamp !== referenceLines.cTime) return null;
-
-                            if (item.type === 'position') {
-                                const detail = item.detail || {};
-                                const sz = detail.pos ?? detail.position ?? '-';
-                                const avgPx = detail.avgPx ?? referencePrice ?? '-';
-                                const lever = detail.lever ?? '-';
-                                return (
-                                    <div>
-                                        <div style={{
-                                            color: '#8c8c8c',
-                                            fontSize: 11,
-                                            fontWeight: 'bold',
-                                            marginBottom: 4
-                                        }}>
-                                            开仓详情
-                                        </div>
-                                        <div style={{display: 'flex', justifyContent: 'space-between', gap: 12}}>
-                                            <span style={{color: '#8c8c8c'}}>方向</span>
-                                            <span
-                                                style={{color: item.posSide === 'long' ? '#52c41a' : '#ff4d4f'}}>{item.posSide}</span>
-                                        </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            gap: 12,
-                                            marginTop: 2
-                                        }}>
-                                            <span style={{color: '#8c8c8c'}}>数量</span>
-                                            <span style={{color: '#fff'}}>{String(sz)}</span>
-                                        </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            gap: 12,
-                                            marginTop: 2
-                                        }}>
-                                            <span style={{color: '#8c8c8c'}}>均价</span>
-                                            <span style={{color: '#fff'}}>{String(avgPx)}</span>
-                                        </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            gap: 12,
-                                            marginTop: 2
-                                        }}>
-                                            <span style={{color: '#8c8c8c'}}>杠杆</span>
-                                            <span style={{color: '#fff'}}>{String(lever)}</span>
-                                        </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            gap: 12,
-                                            marginTop: 2
-                                        }}>
-                                            <span style={{color: '#8c8c8c'}}>时间</span>
-                                            <span
-                                                style={{color: '#fff'}}>{openTimeMs ? new Date(openTimeMs).toLocaleString() : '-'}</span>
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            const detail = item.detail || {};
-                            const side = detail.side ?? '-';
-                            const sz = detail.sz ?? '-';
-                            const px = detail.px ?? referencePrice ?? '-';
-                            const ordType = detail.ordType ?? '-';
-                            const state = detail.state ?? '-';
-                            return (
-                                <div>
-                                    <div style={{color: '#8c8c8c', fontSize: 11, fontWeight: 'bold', marginBottom: 4}}>
-                                        委托详情
-                                    </div>
-                                    <div style={{display: 'flex', justifyContent: 'space-between', gap: 12}}>
-                                        <span style={{color: '#8c8c8c'}}>方向</span>
-                                        <span
-                                            style={{color: side === 'buy' ? '#52c41a' : '#ff4d4f'}}>{String(side)}</span>
-                                    </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        marginTop: 2
-                                    }}>
-                                        <span style={{color: '#8c8c8c'}}>posSide</span>
-                                        <span style={{color: '#fff'}}>{String(item.posSide)}</span>
-                                    </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        marginTop: 2
-                                    }}>
-                                        <span style={{color: '#8c8c8c'}}>数量</span>
-                                        <span style={{color: '#fff'}}>{String(sz)}</span>
-                                    </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        marginTop: 2
-                                    }}>
-                                        <span style={{color: '#8c8c8c'}}>价格</span>
-                                        <span style={{color: '#fff'}}>{String(px)}</span>
-                                    </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        marginTop: 2
-                                    }}>
-                                        <span style={{color: '#8c8c8c'}}>类型</span>
-                                        <span style={{color: '#fff'}}>{String(ordType)}</span>
-                                    </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        marginTop: 2
-                                    }}>
-                                        <span style={{color: '#8c8c8c'}}>状态</span>
-                                        <span style={{color: '#fff'}}>{String(state)}</span>
-                                    </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        marginTop: 2
-                                    }}>
-                                        <span style={{color: '#8c8c8c'}}>时间</span>
-                                        <span
-                                            style={{color: '#fff'}}>{openTimeMs ? new Date(openTimeMs).toLocaleString() : '-'}</span>
-                                    </div>
-                                </div>
-                            );
-                            }}
+                            referenceLines={tpslReferenceLines}
+                            showAvgPx={showAvgPx}
                         />
                     </div>
                     <div style={{
@@ -510,51 +554,46 @@ const ActivePositionOrderChartModal: React.FC<ActivePositionOrderChartModalProps
                         minWidth: 140
                     }}>
                         <Text style={{color: '#1890ff', fontWeight: 'bold', marginBottom: 4}}>技术指标</Text>
+                        {/* EMA：不同周期不同颜色，与K线图中按升序分配的颜色一致 */}
                         <Checkbox checked={visibleIndicators['EMA_12']}
                                   onChange={(e) => toggleIndicator('EMA_12', e.target.checked)}>
-                            <span style={{color: COLORS.indicatorColors.EMA[0]}}>EMA 12</span>
+                            <span style={{color: INDICATOR_COLORS.EMA[0]}}>EMA 12</span>
                         </Checkbox>
                         <Checkbox checked={visibleIndicators['EMA_26']}
                                   onChange={(e) => toggleIndicator('EMA_26', e.target.checked)}>
-                            <span style={{
-                                color: COLORS.indicatorColors.EMA[1] || COLORS.indicatorColors.EMA[0]
-                            }}>EMA 26</span>
+                            <span style={{color: INDICATOR_COLORS.EMA[1]}}>EMA 26</span>
                         </Checkbox>
+                        {/* RSI：不同周期不同颜色 */}
                         <Checkbox checked={visibleIndicators['RSI_9']}
                                   onChange={(e) => toggleIndicator('RSI_9', e.target.checked)}>
-                            <span style={{color: COLORS.indicatorColors.RSI[0]}}>RSI 9</span>
+                            <span style={{color: INDICATOR_COLORS.RSI[0]}}>RSI 9</span>
                         </Checkbox>
                         <Checkbox checked={visibleIndicators['RSI_14']}
                                   onChange={(e) => toggleIndicator('RSI_14', e.target.checked)}>
-                            <span style={{
-                                color: COLORS.indicatorColors.RSI[1] || COLORS.indicatorColors.RSI[0]
-                            }}>RSI 14</span>
+                            <span style={{color: INDICATOR_COLORS.RSI[1]}}>RSI 14</span>
                         </Checkbox>
+                        {/* BOLL：以中轨颜色作为代表色 */}
                         <Checkbox checked={visibleIndicators['BOLL_20']}
                                   onChange={(e) => toggleIndicator('BOLL_20', e.target.checked)}>
-                            <span style={{color: COLORS.indicatorColors.BOLL[0]}}>BOLL 20,2</span>
+                            <span style={{color: INDICATOR_COLORS.BOLL_MIDDLE}}>BOLL 20,2</span>
                         </Checkbox>
+                        {/* MACD：以 DIF 线颜色作为代表色 */}
                         <Checkbox checked={visibleIndicators['MACD_12']}
                                   onChange={(e) => toggleIndicator('MACD_12', e.target.checked)}>
-                            <span style={{
-                                color: COLORS.indicatorColors.BOLL[2] || COLORS.indicatorColors.EMA[0]
-                            }}>MACD(12,26,9)</span>
+                            <span style={{color: INDICATOR_COLORS.MACD_DIF}}>MACD(12,26,9)</span>
                         </Checkbox>
+                        {/* KDJ：不同周期不同颜色（K线颜色作为该周期的代表色） */}
                         <Checkbox checked={visibleIndicators['KDJ_9']}
                                   onChange={(e) => toggleIndicator('KDJ_9', e.target.checked)}>
-                            <span style={{color: COLORS.indicatorColors.KDJ[0]}}>KDJ 9</span>
+                            <span style={{color: INDICATOR_COLORS.KDJ_K[0]}}>KDJ 9</span>
                         </Checkbox>
                         <Checkbox checked={visibleIndicators['KDJ_14']}
                                   onChange={(e) => toggleIndicator('KDJ_14', e.target.checked)}>
-                            <span style={{
-                                color: COLORS.indicatorColors.KDJ[1] || COLORS.indicatorColors.KDJ[0]
-                            }}>KDJ 14</span>
+                            <span style={{color: INDICATOR_COLORS.KDJ_K[1]}}>KDJ 14</span>
                         </Checkbox>
                         <Checkbox checked={visibleIndicators['KDJ_21']}
                                   onChange={(e) => toggleIndicator('KDJ_21', e.target.checked)}>
-                            <span style={{
-                                color: COLORS.indicatorColors.KDJ[2] || COLORS.indicatorColors.KDJ[0]
-                            }}>KDJ 21</span>
+                            <span style={{color: INDICATOR_COLORS.KDJ_K[2]}}>KDJ 21</span>
                         </Checkbox>
                     </div>
                 </div>

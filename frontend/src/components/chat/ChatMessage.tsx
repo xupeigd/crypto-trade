@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {Avatar, Card, Typography, Button, Tooltip} from 'antd';
-import {RobotOutlined, UserOutlined, DownOutlined, UpOutlined} from '@ant-design/icons';
+import {RobotOutlined, UserOutlined, DownOutlined, UpOutlined, ToolOutlined} from '@ant-design/icons';
 import {ChatMessage as ChatMessageType} from '../../types/chat';
 import MarkdownRenderer from '../common/MarkdownRenderer';
 
@@ -16,7 +16,7 @@ const preprocessContent = (content: string): string => {
     const resultWithThinking = content.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, (match, thinkingContent) => {
         const quotedContent = thinkingContent.trim()
             .split('\n')
-            .map(line => `> ${line}`)
+            .map((line: string) => `> ${line}`)
             .join('\n');
         thinkingMarkdown = `**🤔 思考过程:**\n${quotedContent}`;
         return ''; // 移除thinking标签
@@ -48,9 +48,12 @@ const COLLAPSE_THRESHOLD = 150; // 字符数超过150时自动折叠
 
 const ChatMessage: React.FC<ChatMessageProps> = ({message}) => {
     const isUser = message.role === 'user';
+    const isTool = message.role === 'tool';
 
     // 折叠状态
     const [isExpanded, setIsExpanded] = useState(false);
+    // tool 角色默认折叠，点击后展开
+    const [isToolExpanded, setIsToolExpanded] = useState(false);
 
     // 判断是否需要显示折叠按钮
     const shouldShowCollapseButton = () => {
@@ -126,18 +129,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({message}) => {
                 {/* 头像 */}
                 <Avatar
                     size="small"
-                    icon={isUser ? <UserOutlined/> : <RobotOutlined/>}
+                    icon={isUser ? <UserOutlined/> : isTool ? <ToolOutlined/> : <RobotOutlined/>}
                     style={{
-                        backgroundColor: isUser ? '#1890ff' : '#52c41a',
-                        flexShrink: 0
+                        backgroundColor: isUser ? '#1890ff' : isTool ? '#fa8c16' : '#52c41a',
+                        flexShrink: 0,
+                        cursor: isTool ? 'pointer' : 'default',
+                        transition: isTool ? 'all 0.2s' : undefined,
+                        boxShadow: isTool ? (isToolExpanded ? '0 0 8px #fa8c16' : 'none') : undefined
                     }}
+                    onClick={() => isTool && setIsToolExpanded(!isToolExpanded)}
                 />
 
-                {/* 消息内容 */}
+                {/* 消息内容 - tool 角色默认折叠，点击头像后展开 */}
+                {(!isTool || isToolExpanded) && (
                 <Card
                     size="small"
                     style={{
-                        backgroundColor: isUser ? 'rgba(24, 144, 255, 0.3)' : '#2a2a2a',
+                        backgroundColor: isUser ? 'rgba(24, 144, 255, 0.3)' : isTool ? '#3a3a3a' : '#2a2a2a',
                         border: isUser ? 'none' : '1px solid #404040',
                         borderRadius: 18,
                         wordBreak: 'break-word',
@@ -198,6 +206,34 @@ const ChatMessage: React.FC<ChatMessageProps> = ({message}) => {
                         </Tooltip>
                     )}
 
+                    {/* tool 角色折叠按钮 */}
+                    {isTool && isToolExpanded && (
+                        <Tooltip title='收起工具结果' placement="top">
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<UpOutlined />}
+                                onClick={() => setIsToolExpanded(false)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '13px',
+                                    right: '17px',
+                                    backgroundColor: 'transparent',
+                                    borderColor: 'transparent',
+                                    color: '#fa8c16',
+                                    zIndex: 10,
+                                    opacity: 0.9
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.opacity = '1';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.opacity = '0.9';
+                                }}
+                            />
+                        </Tooltip>
+                    )}
+
                     {/* 时间戳 */}
                     <div style={{marginTop: 4}}>
                         <Text
@@ -207,6 +243,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({message}) => {
                         </Text>
                     </div>
                 </Card>
+                )}
+                {/* tool 角色提示文字 */}
+                {isTool && !isToolExpanded && (
+                    <Text style={{fontSize: 12, color: 'rgba(255, 255, 255, 0.45)', marginLeft: 8}}>
+                        点击图标查看工具调用结果
+                    </Text>
+                )}
             </div>
         </div>
     );

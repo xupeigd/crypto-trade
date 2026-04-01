@@ -17,6 +17,30 @@ export enum TradingStyle {
     C5_AGGRESSIVE = 'C5_AGGRESSIVE'
 }
 
+// 执行模式枚举
+export enum ExecutionMode {
+    LIVE = 'LIVE',
+    DRY_RUN = 'DRY_RUN'
+}
+
+// 执行模式映射
+export const ExecutionModeMap = {
+    [ExecutionMode.LIVE]: '实盘模式',
+    [ExecutionMode.DRY_RUN]: '模拟模式'
+};
+
+// 执行模式颜色映射
+export const ExecutionModeColorMap = {
+    [ExecutionMode.LIVE]: '#52c41a', // 绿色 - 表示实盘
+    [ExecutionMode.DRY_RUN]: '#fa8c16' // 橙色 - 表示模拟
+};
+
+// 执行模式图标映射
+export const ExecutionModeIconMap = {
+    [ExecutionMode.LIVE]: '🔴', // 实盘
+    [ExecutionMode.DRY_RUN]: '🟠' // 模拟
+};
+
 // 风控模式映射
 export const RiskModeMap = {
     [RiskMode.AUTO]: '自动模式',
@@ -112,6 +136,10 @@ export interface RiskControlInfo {
     isC5AggressiveStyle: boolean;
     lastTradingStyleChange?: TradingStyleHistory;
     totalTradingStyleChangesToday: number;
+
+    // 执行模式相关字段
+    executionMode?: ExecutionMode;
+    defaultExecutionMode: ExecutionMode;
 }
 
 // 当前模式响应接口
@@ -164,6 +192,18 @@ export interface SetTradingStyleResponse {
     message: string;
     history?: TradingStyleHistory;
     currentTradingStyle: TradingStyle;
+}
+
+// 设置执行模式请求接口
+export interface SetExecutionModeRequest {
+    mode: ExecutionMode;
+    reason: string;
+}
+
+// 设置执行模式响应接口
+export interface SetExecutionModeResponse {
+    success: boolean;
+    message: string;
 }
 
 // 今日统计信息接口

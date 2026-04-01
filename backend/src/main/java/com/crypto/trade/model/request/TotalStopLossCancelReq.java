@@ -24,6 +24,16 @@ public class TotalStopLossCancelReq {
     Integer apiKeyId;
 
     /**
+     * 合约品种
+     */
+    String instId;
+
+    /**
+     * 持仓方向: long / short
+     */
+    String posSide;
+
+    /**
      * 算法订单ID
      */
     String algoId;

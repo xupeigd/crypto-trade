@@ -14,7 +14,8 @@ import java.util.Optional;
  * @date 2026-02-12 11:25
  */
 @Repository
-public interface RiskControlConfigRepository extends JpaRepository<RiskControlConfig, Long> {
+public interface RiskControlConfigRepository
+        extends JpaRepository<RiskControlConfig, Long> {
 
     /**
      * 根据配置ID查找配置

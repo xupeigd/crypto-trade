@@ -47,13 +47,18 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
     const [position, setPosition] = useState<{ top: number; left: number }>({top: 0, left: 0});
     const panelRef = useRef<HTMLDivElement>(null);
 
-    // 指标特定颜色映射 - 与CandlestickChart保持一致
+    // 指标特定颜色映射 - 与LightweightCandlestickChart保持一致
     const indicatorColorMap: Record<string, string[]> = {
-        EMA: ['#1890ff', '#00d2d3', '#52c41a', '#fa8c16', '#f5222d', '#722ed1', '#13c2c2'],
-        SMA: ['#eb2f96', '#fa541c', '#fadb14', '#52c41a', '#1890ff', '#722ed1', '#13c2c2'],
-        WMA: ['#a0d911', '#faad14', '#fa8c16', '#f5222d', '#cf1322', '#722ed1', '#2f54eb'],
-        RSI: ['#9254de', '#13c2c2', '#52c41a', '#fa8c16', '#f5222d', '#722ed1', '#1890ff'],
-        BOLL: ['#ff4d4f', '#52c41a', '#1890ff', '#fa8c16', '#722ed1', '#faad14', '#13c2c2']
+        EMA: ['#1890ff', '#00b4d8', '#0077b6', '#48cae4'],
+        SMA: ['#eb2f96', '#fa541c', '#fadb14', '#a8071a'],
+        WMA: ['#52c41a', '#73d13d', '#95de64', '#b7eb8f'],
+        RSI: ['#9254de', '#d46b08', '#389e0d', '#0958d9'],
+        BOLL: ['#ff4d4f', '#faad14', '#52c41a', '#1890ff'],
+        KDJ: ['#fa8c16', '#13c2c2', '#eb2f96'],
+        CCI: ['#13c2c2', '#36cfc9', '#5cdbd3', '#87e8de'],
+        ATR: ['#fa8c16', '#ffa940', '#ffc06d', '#ffd591'],
+        OBV: ['#2f54eb', '#597ef7', '#85a5ff', '#adc6ff'],
+        ADX: ['#f5222d', '#ff4d4f', '#ff7875', '#ffa39e']
     };
 
     // 获取当前指标的颜色序列，如果未定义则使用默认序列
@@ -186,6 +191,46 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
             maxPeriod: 60,
             icon: '🔄',
             description: 'MACD指标'
+        },
+        KDJ: {
+            name: 'KDJ',
+            defaultPeriod: 9,
+            minPeriod: 1,
+            maxPeriod: 60,
+            icon: '🔶',
+            description: 'KDJ指标'
+        },
+        CCI: {
+            name: 'CCI',
+            defaultPeriod: 14,
+            minPeriod: 1,
+            maxPeriod: 60,
+            icon: '🔷',
+            description: '商品通道指标'
+        },
+        ATR: {
+            name: 'ATR',
+            defaultPeriod: 14,
+            minPeriod: 1,
+            maxPeriod: 60,
+            icon: '📏',
+            description: '平均真实波幅'
+        },
+        OBV: {
+            name: 'OBV',
+            defaultPeriod: 1,
+            minPeriod: 1,
+            maxPeriod: 60,
+            icon: '📦',
+            description: '能量潮指标'
+        },
+        ADX: {
+            name: 'ADX',
+            defaultPeriod: 14,
+            minPeriod: 1,
+            maxPeriod: 60,
+            icon: '🎯',
+            description: '平均趋向指数'
         }
     };
 
@@ -194,22 +239,22 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
     // 获取当前周期的列表
     const getCurrentPeriods = (): PeriodItem[] => {
         // 添加详细调试信息
-        console.log(`[IndicatorDropdownPanel] ${indicator} getCurrentPeriods 调用:`, {
-            indicatorConfig,
-            有periods: !!indicatorConfig.periods,
-            periods长度: indicatorConfig.periods?.length,
-            periods详情: indicatorConfig.periods,
-            hasPeriodColors: !!indicatorConfig.periodColors,
-            periodColors详情: indicatorConfig.periodColors,
-            hasVisiblePeriods: !!indicatorConfig.visiblePeriods,
-            visiblePeriods详情: indicatorConfig.visiblePeriods,
-            指标是否选中: selectedIndicators?.includes(indicator),
-            selectedIndicators
-        });
+        // console.log(`[IndicatorDropdownPanel] ${indicator} getCurrentPeriods 调用:`, {
+        //     indicatorConfig,
+        //     有periods: !!indicatorConfig.periods,
+        //     periods长度: indicatorConfig.periods?.length,
+        //     periods详情: indicatorConfig.periods,
+        //     hasPeriodColors: !!indicatorConfig.periodColors,
+        //     periodColors详情: indicatorConfig.periodColors,
+        //     hasVisiblePeriods: !!indicatorConfig.visiblePeriods,
+        //     visiblePeriods详情: indicatorConfig.visiblePeriods,
+        //     指标是否选中: selectedIndicators?.includes(indicator),
+        //     selectedIndicators
+        // });
 
         // 直接返回现有的多周期配置，不创建临时配置
         if (!indicatorConfig.periods || indicatorConfig.periods.length === 0) {
-            console.log(`[IndicatorDropdownPanel] ${indicator} 没有多周期配置，返回空数组`);
+            // console.log(`[IndicatorDropdownPanel] ${indicator} 没有多周期配置，返回空数组`);
             return [];
         }
 
@@ -255,7 +300,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
             };
         });
 
-        console.log(`[IndicatorDropdownPanel] ${indicator} 生成的周期列表:`, result);
+        // console.log(`[IndicatorDropdownPanel] ${indicator} 生成的周期列表:`, result);
 
         return result;
     };
@@ -276,10 +321,10 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
             );
 
         if (hasChanged) {
-            console.log(`[IndicatorDropdownPanel] ${indicator} 配置已更新，同步本地状态`, {
-                旧周期: periods,
-                新周期: expectedPeriods
-            });
+            // console.log(`[IndicatorDropdownPanel] ${indicator} 配置已更新，同步本地状态`, {
+            //     旧周期: periods,
+            //     新周期: expectedPeriods
+            // });
             setPeriods(expectedPeriods);
         }
     }, [indicatorConfig.periods, indicatorConfig.periodColors, indicatorConfig.visiblePeriods]);
@@ -318,13 +363,13 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
         };
 
         // 立即更新配置并强制触发重新渲染
-        console.log(`[IndicatorDropdownPanel] 添加周期 ${indicator}:`, newConfig);
+        // console.log(`[IndicatorDropdownPanel] 添加周期 ${indicator}:`, newConfig);
 
         // 检查指标是否已激活，如果未激活则先激活
         const isSelected = selectedIndicators.includes(indicator);
         if (!isSelected && onActivateIndicator) {
             // 先激活指标
-            console.log(`[IndicatorDropdownPanel] 添加第一个周期，激活指标 ${indicator}`);
+            // console.log(`[IndicatorDropdownPanel] 添加第一个周期，激活指标 ${indicator}`);
             try {
                 onActivateIndicator(indicator);
             } catch (error) {
@@ -335,7 +380,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
         // 触发配置更新
         try {
             onUpdateConfig(indicator, newConfig);
-            console.log(`[IndicatorDropdownPanel] 配置更新已触发 ${indicator}:`, newConfig);
+            // console.log(`[IndicatorDropdownPanel] 配置更新已触发 ${indicator}:`, newConfig);
         } catch (error) {
             console.error(`[IndicatorDropdownPanel] 配置更新失败 ${indicator}:`, error);
         }
@@ -356,7 +401,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
                 visiblePeriods: updatedPeriods.filter(p => p.isActive).map(p => p.period),
                 stdDevs: updatedPeriods.map(p => p.stdDev !== undefined ? p.stdDev : 2.0) // BOLL专用
             };
-            console.log(`[IndicatorDropdownPanel] 删除周期 ${indicator}:`, newConfig);
+            // console.log(`[IndicatorDropdownPanel] 删除周期 ${indicator}:`, newConfig);
 
             // 强制触发配置更新
             try {
@@ -364,13 +409,13 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
 
                 // 添加延迟确保状态更新完成
                 setTimeout(() => {
-                    console.log(`[IndicatorDropdownPanel] 删除周期状态更新完成 ${indicator}`);
+                    // console.log(`[IndicatorDropdownPanel] 删除周期状态更新完成 ${indicator}`);
                 }, 10);
             } catch (error) {
                 console.error(`[IndicatorDropdownPanel] 删除周期失败 ${indicator}:`, error);
             }
         } else {
-            console.log(`[IndicatorDropdownPanel] 删除周期 ${indicator}: 没有剩余周期，完全清理配置`);
+            // console.log(`[IndicatorDropdownPanel] 删除周期 ${indicator}: 没有剩余周期，完全清理配置`);
 
             // 所有周期都被删除时，清理所有配置
             const cleanConfig = {
@@ -383,7 +428,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
                 slowPeriod: undefined,
                 signalPeriod: undefined
             };
-            console.log(`[IndicatorDropdownPanel] 完全清理配置 ${indicator}:`, cleanConfig);
+            // console.log(`[IndicatorDropdownPanel] 完全清理配置 ${indicator}:`, cleanConfig);
 
             try {
                 onUpdateConfig(indicator, cleanConfig);
@@ -408,7 +453,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
             visiblePeriods: updatedPeriods.filter(p => p.isActive).map(p => p.period),
             stdDevs: updatedPeriods.map(p => p.stdDev !== undefined ? p.stdDev : 2.0) // BOLL专用
         };
-        console.log(`[IndicatorDropdownPanel] 切换周期状态 ${indicator}:`, newConfig);
+        // console.log(`[IndicatorDropdownPanel] 切换周期状态 ${indicator}:`, newConfig);
 
         // 强制触发配置更新
         try {
@@ -416,7 +461,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
 
             // 添加延迟确保状态更新完成
             setTimeout(() => {
-                console.log(`[IndicatorDropdownPanel] 切换周期状态更新完成 ${indicator}`);
+                // console.log(`[IndicatorDropdownPanel] 切换周期状态更新完成 ${indicator}`);
             }, 10);
         } catch (error) {
             console.error(`[IndicatorDropdownPanel] 切换周期状态失败 ${indicator}:`, error);
@@ -437,7 +482,7 @@ const IndicatorDropdownPanel: React.FC<IndicatorDropdownPanelProps> = ({
             visiblePeriods: updatedPeriods.filter(p => p.isActive).map(p => p.period),
             stdDevs: updatedPeriods.map(p => p.stdDev !== undefined ? p.stdDev : 2.0) // BOLL专用
         };
-        console.log(`[IndicatorDropdownPanel] 更新标准差 ${indicator}:`, newConfig);
+        // console.log(`[IndicatorDropdownPanel] 更新标准差 ${indicator}:`, newConfig);
 
         try {
             onUpdateConfig(indicator, newConfig);

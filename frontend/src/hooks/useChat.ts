@@ -16,10 +16,10 @@ export const useChat = () => {
     });
 
     // 加载用户会话列表
-    const loadSessions = useCallback(async (userId: string = 'default') => {
+    const loadSessions = useCallback(async (userId: string = 'default', agentId?: number) => {
         try {
             setState(prev => ({...prev, isLoading: true, error: null}));
-            const sessions = await chatService.getUserSessions(userId);
+            const sessions = await chatService.getUserSessions(userId, agentId);
             setState(prev => ({
                 ...prev,
                 sessions,
@@ -36,13 +36,13 @@ export const useChat = () => {
     }, []);
 
     // 创建新会话
-    const createSession = useCallback(async (sessionName?: string, userId: string = 'default') => {
+    const createSession = useCallback(async (sessionName?: string, userId: string = 'default', agentId?: number) => {
         try {
             setState(prev => ({...prev, isLoading: true, error: null}));
-            const newSession = await chatService.createNewSession(sessionName, userId);
+            const newSession = await chatService.createNewSession(sessionName, userId, agentId);
             setState(prev => ({
                 ...prev,
-                sessions: [newSession, ...prev.sessions],
+                sessions: [newSession, ...(Array.isArray(prev.sessions) ? prev.sessions : [])],
                 isLoading: false
             }));
             return newSession;
@@ -136,7 +136,7 @@ export const useChat = () => {
     }, [loadMessages, state.sessions]);
 
     // 发送消息
-    const sendMessage = useCallback(async (message: string, userId: string = 'default') => {
+    const sendMessage = useCallback(async (message: string, userId: string = 'default', systemPrompt?: string) => {
         if (!message.trim()) {
             return;
         }
@@ -178,7 +178,8 @@ export const useChat = () => {
             const response = await chatService.sendMessage({
                 sessionId,
                 message: message.trim(),
-                userId
+                userId,
+                systemPrompt
             });
 
             if (response.success && response.sessionId) {

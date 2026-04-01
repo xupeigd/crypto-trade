@@ -12,7 +12,8 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-public class BalanceInfoParameters extends ToolParameters {
+public class BalanceInfoParameters
+        extends ToolParameters {
 
     /**
      * 特定货币，可选
@@ -25,7 +26,8 @@ public class BalanceInfoParameters extends ToolParameters {
     private Boolean includeMargin = true;
 
     @Override
-    public String getAction() {
+    String getAction() {
         return "balance_info";
     }
+
 }

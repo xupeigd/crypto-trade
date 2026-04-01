@@ -2,7 +2,200 @@ import React, {useState} from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {Button} from 'antd';
-import {CopyOutlined, LineChartOutlined} from '@ant-design/icons';
+import {LineChartOutlined} from '@ant-design/icons';
+import FundamentalAnalysisChart, {FundamentalAnalysisData} from '../chat/FundamentalAnalysisChart';
+
+// 模块级别的图表模式存储，避免组件重渲染时状态丢失
+const globalChartModes = new Map<string, 'json' | 'chart'>();
+
+// 简单的字符串 hash 函数
+const simpleHash = (str: string): string => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+};
+
+// JSON格式化函数（移到组件外部）
+const formatJson = (content: string): string => {
+    try {
+        const parsed = JSON.parse(content);
+        return JSON.stringify(parsed, null, 2);
+    } catch {
+        return content;
+    }
+};
+
+// JSON语法高亮函数（移到组件外部）
+const highlightJson = (json: string): string => {
+    return json
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"([^"]+)":/g, '<span style="color: #9cdcfe;">"$1":</span>')
+        .replace(/: "([^"]*)"/g, ': <span style="color: #ce9178;">"$1"</span>')
+        .replace(/: (\d+\.?\d*)/g, ': <span style="color: #b5cea8;">$1</span>')
+        .replace(/: (true|false)/g, ': <span style="color: #569cd6;">$1</span>')
+        .replace(/: (null)/g, ': <span style="color: #569cd6;">$1</span>');
+};
+
+// 检测内容是否为JSON（移到组件外部）
+const isJsonContent = (content: string): boolean => {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) return true;
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) return true;
+    return false;
+};
+
+// 检测 JSON 是否为 FundamentalAnalysis 类型（移到组件外部）
+const isFundamentalAnalysis = (content: string): { isFA: boolean; data?: FundamentalAnalysisData } => {
+    try {
+        const parsed = JSON.parse(content);
+        if (parsed && parsed.type === 'FundamentalAnalysis' && parsed.instId && parsed.timeframe) {
+            return { isFA: true, data: parsed as FundamentalAnalysisData };
+        }
+    } catch {
+        // 解析失败，不是有效 JSON
+    }
+    return { isFA: false };
+};
+
+// 独立的代码块组件（移到 MarkdownRenderer 外部）
+interface CodeBlockComponentProps {
+    children: any;
+    inline?: boolean;
+    className?: string;
+    isUser: boolean;
+    chartMode?: 'json' | 'chart';
+    onToggleChartMode?: () => void;
+    onChartModeChange?: (isChart: boolean) => void;
+}
+
+const CodeBlockComponent: React.FC<CodeBlockComponentProps> = ({children, inline, className, isUser, chartMode = 'json', onToggleChartMode, onChartModeChange}) => {
+    // 获取代码内容
+    let codeContent = '';
+    if (typeof children === 'string') {
+        codeContent = children;
+    } else if (Array.isArray(children)) {
+        codeContent = children.join('');
+    } else if (children && typeof children === 'object') {
+        codeContent = String(children);
+    }
+
+    // 检查是否为JSON代码块
+    const isJsonBlock = className?.includes('json') || isJsonContent(codeContent);
+
+    // 检测是否为 FundamentalAnalysis 类型
+    const faResult = isJsonBlock ? isFundamentalAnalysis(codeContent) : { isFA: false };
+
+    // 获取代码块背景色
+    const codeBlockBackgroundColor = isUser ? 'rgba(24, 144, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)';
+
+    // 如果是图表模式，渲染 K 线图
+    if (chartMode === 'chart' && faResult.isFA && faResult.data) {
+        return (
+            <FundamentalAnalysisChart
+                data={faResult.data}
+                height={350}
+                onBack={() => {
+                    onToggleChartMode?.();
+                    onChartModeChange?.(false);
+                }}
+            />
+        );
+    }
+
+    // 如果是JSON，进行格式化和语法高亮
+    if (isJsonBlock && !inline) {
+        const formattedJson = formatJson(codeContent);
+        const highlightedJson = highlightJson(formattedJson);
+
+        return (
+            <div style={{ position: 'relative' }}>
+                {/* 可视化按钮 - 仅在 FundamentalAnalysis 类型时显示 */}
+                {faResult.isFA && (
+                    <Button
+                        type="text"
+                        size="small"
+                        icon={<LineChartOutlined />}
+                        onClick={() => {
+                            onToggleChartMode?.();
+                            onChartModeChange?.(true);
+                        }}
+                        style={{
+                            position: 'absolute',
+                            top: 8,
+                            left: 8,
+                            zIndex: 10,
+                            color: '#1890ff',
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            borderRadius: '4px'
+                        }}
+                        title="K线图可视化"
+                    >
+                        可视化
+                    </Button>
+                )}
+                <pre
+                    className="json-code-block"
+                    style={{
+                        backgroundColor: codeBlockBackgroundColor,
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '16px',
+                        margin: '16px 0',
+                        overflowX: 'auto',
+                        fontSize: '13px',
+                        fontFamily: 'Consolas, Monaco, monospace',
+                        lineHeight: '1.5',
+                        color: '#d4d4d4',
+                        paddingTop: faResult.isFA ? '44px' : '16px'
+                    }}
+                    dangerouslySetInnerHTML={{__html: `<code>${highlightedJson}</code>`}}
+                />
+            </div>
+        );
+    }
+
+    // 非JSON代码块，使用原有逻辑
+    if (inline) {
+        return (
+            <code
+                style={{
+                    backgroundColor: codeBlockBackgroundColor,
+                    color: '#e6e6e6',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontFamily: 'Monaco, Consolas, monospace'
+                }}
+            >
+                {children}
+            </code>
+        );
+    }
+
+    return (
+        <pre
+            style={{
+                backgroundColor: codeBlockBackgroundColor,
+                border: 'none',
+                borderRadius: '6px',
+                padding: '16px',
+                margin: '16px 0',
+                overflow: 'auto',
+                fontSize: '12px',
+                fontFamily: 'Monaco, Consolas, monospace',
+                lineHeight: '1.5'
+            }}
+        >
+            <code>{children}</code>
+        </pre>
+    );
+};
 
 interface MarkdownRendererProps {
     content: string;
@@ -13,6 +206,7 @@ interface MarkdownRendererProps {
     showCopyButton?: boolean;
     isUser?: boolean;
     fullContent?: string;
+    onChartModeChange?: (isChart: boolean) => void;
 }
 
 /**
@@ -28,10 +222,25 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                                                                segmentTitle,
                                                                showCopyButton = true,
                                                                isUser = false,
-                                                               fullContent
+                                                               fullContent,
+                                                               onChartModeChange
                                                            }) => {
-    const [isHovered, setIsHovered] = useState(false);
-    const [copied, setCopied] = useState(false);
+    // 使用计数器触发重渲染
+    const [, forceUpdate] = useState(0);
+
+    // 切换代码块的图表模式
+    const toggleChartMode = (codeHash: string) => {
+        const currentMode = globalChartModes.get(codeHash) || 'json';
+        globalChartModes.set(codeHash, currentMode === 'json' ? 'chart' : 'json');
+        forceUpdate(n => n + 1);
+    };
+
+    // 获取图表模式
+    const getChartMode = (codeHash: string): 'json' | 'chart' => {
+        return globalChartModes.get(codeHash) || 'json';
+    };
+
+    // 移除 isHovered 和 copied 状态，因为 CollapsibleMessageContent 已经有复制功能
 
     // 预处理内容函数：将 <thinking> 标签转换为 markdown 引用块格式，处理纯JSON
     const preprocessContent = (content: string, segmentTitle?: string): string => {
@@ -40,7 +249,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         const resultWithThinking = content.replace(/<thinking>([\s\S]*?)<\/thinking>/gi, (match, thinkingContent) => {
             const quotedContent = thinkingContent.trim()
                 .split('\n')
-                .map(line => `> ${line}`)
+                .map((line: string) => `> ${line}`)
                 .join('\n');
             thinkingMarkdown = `**🤔 思考过程:**\n${quotedContent}`;
             return ''; // 移除thinking标签
@@ -102,18 +311,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             return 'rgba(24, 144, 255, 0.3)';
         }
         return index % 2 === 0 ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.12)';
-    };
-
-    // 处理复制功能
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(fullContent || content);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch (error) {
-            // 静默处理复制失败
-            console.error('复制失败:', error);
-        }
     };
 
     // 判断段落是否应该显示图表按钮
@@ -638,118 +835,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         </td>
     );
 
-    // JSON格式化函数
-    const formatJson = (content: string): string => {
-        try {
-            // 尝试解析JSON
-            const parsed = JSON.parse(content);
-            // 格式化JSON，缩进2个空格
-            return JSON.stringify(parsed, null, 2);
-        } catch {
-            // 解析失败，返回原内容
-            return content;
-        }
-    };
-
-    // JSON语法高亮函数
-    const highlightJson = (json: string): string => {
-        // 为JSON添加语法高亮
-        return json
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"([^"]+)":/g, '<span style="color: #9cdcfe;">"$1":</span>')
-            .replace(/: "([^"]*)"/g, ': <span style="color: #ce9178;">"$1"</span>')
-            .replace(/: (\d+\.?\d*)/g, ': <span style="color: #b5cea8;">$1</span>')
-            .replace(/: (true|false)/g, ': <span style="color: #569cd6;">$1</span>')
-            .replace(/: (null)/g, ': <span style="color: #569cd6;">$1</span>');
-    };
-
-    // 检测内容是否为JSON
-    const isJsonContent = (content: string): boolean => {
-        const trimmed = content.trim();
-        if (trimmed.startsWith('{') && trimmed.endsWith('}')) return true;
-        if (trimmed.startsWith('[') && trimmed.endsWith(']')) return true;
-        return false;
-    };
-
-    // 自定义代码块样式组件
-    const CodeBlockComponent: React.FC<any> = ({children, inline, className}) => {
-        // 获取代码内容
-        let codeContent = '';
-        if (typeof children === 'string') {
-            codeContent = children;
-        } else if (Array.isArray(children)) {
-            codeContent = children.join('');
-        } else if (children && typeof children === 'object') {
-            codeContent = String(children);
-        }
-
-        // 检查是否为JSON代码块
-        const isJsonBlock = className?.includes('json') || isJsonContent(codeContent);
-
-        // 如果是JSON，进行格式化和语法高亮
-        if (isJsonBlock && !inline) {
-            const formattedJson = formatJson(codeContent);
-            const highlightedJson = highlightJson(formattedJson);
-
-            return (
-                <pre
-                    className="json-code-block"
-                    style={{
-                        backgroundColor: getCodeBlockBackgroundColor(),
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '16px',
-                        margin: '16px 0',
-                        overflowX: 'auto',
-                        fontSize: '13px',
-                        fontFamily: 'Consolas, Monaco, monospace',
-                        lineHeight: '1.5',
-                        color: '#d4d4d4'
-                    }}
-                    dangerouslySetInnerHTML={{__html: `<code>${highlightedJson}</code>`}}
-                />
-            );
-        }
-
-        // 非JSON代码块，使用原有逻辑
-        if (inline) {
-            return (
-                <code
-                    style={{
-                        backgroundColor: getCodeBlockBackgroundColor(),
-                        color: '#e6e6e6',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontFamily: 'Monaco, Consolas, monospace'
-                    }}
-                >
-                    {children}
-                </code>
-            );
-        }
-
-        return (
-            <pre
-                style={{
-                    backgroundColor: getCodeBlockBackgroundColor(),
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '16px',
-                    margin: '16px 0',
-                    overflow: 'auto',
-                    fontSize: '12px',
-                    fontFamily: 'Monaco, Consolas, monospace',
-                    lineHeight: '1.5'
-                }}
-            >
-                <code>{children}</code>
-            </pre>
-        );
-    };
-
     // 自定义链接样式组件
     const LinkComponent: React.FC<any> = ({href, children}) => (
         <a
@@ -784,40 +869,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                 ...style
             }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
         >
-            {/* 复制按钮 */}
-            {showCopyButton && isHovered && (
-                <Button
-                    type="text"
-                    size="small"
-                    icon={copied ? <CopyOutlined/> : <CopyOutlined/>}
-                    onClick={handleCopy}
-                    style={{
-                        position: 'absolute',
-                        top: '1px',
-                        right: '25px',
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent',
-                        color: copied ? '#52c41a' : '#ffffff',
-                        zIndex: 10,
-                        opacity: 0.9
-                    }}
-                    onMouseEnter={(e) => {
-                        if (!copied) {
-                            e.currentTarget.style.color = '#1890ff';
-                        }
-                        e.currentTarget.style.opacity = '1';
-                    }}
-                    onMouseLeave={(e) => {
-                        if (!copied) {
-                            e.currentTarget.style.color = '#ffffff';
-                        }
-                        e.currentTarget.style.opacity = '0.9';
-                    }}
-                />
-            )}
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -827,7 +879,27 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                     tr: RowComponent,
                     th: ThComponent,
                     td: TdComponent,
-                    code: CodeBlockComponent,
+                    code: (props: any) => {
+                        // 获取代码内容生成 hash
+                        let codeContent = '';
+                        if (typeof props.children === 'string') {
+                            codeContent = props.children;
+                        } else if (Array.isArray(props.children)) {
+                            codeContent = props.children.join('');
+                        } else if (props.children && typeof props.children === 'object') {
+                            codeContent = String(props.children);
+                        }
+                        const codeHash = simpleHash(codeContent);
+                        return (
+                            <CodeBlockComponent
+                                {...props}
+                                isUser={isUser}
+                                chartMode={getChartMode(codeHash)}
+                                onToggleChartMode={() => toggleChartMode(codeHash)}
+                                onChartModeChange={onChartModeChange}
+                            />
+                        );
+                    },
                     a: LinkComponent,
                     // 其他markdown元素的样式
                     h1: ({children}) => (

@@ -9,11 +9,19 @@ import CexKeyList from './pages/cex-keys/CexKeyList';
 import DataFetchList from './pages/data-fetch/DataFetchList';
 import ExecutionList from './pages/executions/ExecutionList';
 import ProxyList from './pages/proxy/ProxyList';
+import CexProxyBindingList from './pages/proxy/CexProxyBindingList';
+import FreqtradeConfigList from './pages/proxy/FreqtradeConfigList';
+import StrategyConfigList from './pages/proxy/StrategyConfigList';
+import StrategyExecutionPage from './pages/freqtrade/StrategyExecutionPage';
+import BacktestManagementPage from './pages/backtest/BacktestManagementPage';
+import InstanceMonitorPage from './pages/freqtrade/InstanceMonitorPage';
 import PositionList from './pages/positions';
 import TradingPage from './pages/trading/TradingPage';
 import BotPage from './pages/bot/BotPage';
 import AiTradingConfig from './pages/ai-trading/AiTradingConfig';
 import AiModelConfig from './pages/ai-model-configs/AiModelConfig';
+import AgentConfig from './pages/agent-configs/AgentConfig';
+import SkillConfig from './pages/skill-configs/SkillConfig';
 import {MenuModeProvider} from './contexts/MenuModeContext';
 import {SidebarProvider} from './contexts/SidebarContext';
 
@@ -404,15 +412,24 @@ const App: React.FC = () => {
                                     <Route path="/cex-keys" element={<CexKeyList/>}/>
                                     <Route path="/data-fetch" element={<DataFetchList/>}/>
                                     <Route path="/proxy" element={<ProxyList/>}/>
+                                    <Route path="/cex-proxy-bindings" element={<CexProxyBindingList/>}/>
                                     <Route path="/tasks" element={<TaskList/>}/>
                                     <Route path="/executions" element={<ExecutionList/>}/>
 
                                     {/* 旧的系统管理路径重定向到新路径 */}
                                     <Route path="/system/ai-trading" element={<AiTradingConfig/>}/>
                                     <Route path="/system/ai-model-configs" element={<AiModelConfig/>}/>
+                                    <Route path="/system/agent-configs" element={<AgentConfig/>}/>
+                                    <Route path="/system/skill-configs" element={<SkillConfig/>}/>
                                     <Route path="/system/cex-keys" element={<CexKeyList/>}/>
                                     <Route path="/system/data-fetch" element={<DataFetchList/>}/>
                                     <Route path="/system/proxy" element={<ProxyList/>}/>
+                                    <Route path="/system/cex-proxy-bindings" element={<CexProxyBindingList/>}/>
+                                    <Route path="/system/freqtrade-config" element={<FreqtradeConfigList/>}/>
+                                    <Route path="/system/strategy-config" element={<StrategyConfigList/>}/>
+                                    <Route path="/system/strategy-execution" element={<StrategyExecutionPage/>}/>
+                                    <Route path="/system/backtest" element={<BacktestManagementPage/>}/>
+                                    <Route path="/strategy-execution/monitor/:instanceId" element={<InstanceMonitorPage/>}/>
                                     <Route path="/system/tasks" element={<TaskList/>}/>
                                     <Route path="/system/executions" element={<ExecutionList/>}/>
 

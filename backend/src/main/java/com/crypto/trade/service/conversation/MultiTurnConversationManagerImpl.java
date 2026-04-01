@@ -1,6 +1,7 @@
 package com.crypto.trade.service.conversation;
 
 import com.crypto.trade.entity.LlmCallRecord;
+import com.crypto.trade.service.BotPromptCacheService;
 import com.crypto.trade.service.ChatService;
 import com.crypto.trade.service.LlmCallRecordService;
 import com.crypto.trade.service.MultiTurnConversationService;
@@ -51,6 +52,8 @@ public class MultiTurnConversationManagerImpl
     ChatService chatService;
     @Autowired
     MultiTurnConversationService multiTurnConversationService;
+    @Autowired
+    BotPromptCacheService botPromptCacheService;
 
     @Override
     public ConversationContext startConversation(ConversationRequest request) {
@@ -209,7 +212,13 @@ public class MultiTurnConversationManagerImpl
                                                   ConversationRequest request) {
         log.info("执行第一轮对话 - sessionId: {}", context.getSessionId());
 
-        // 1. 创建调用记录
+        // 1. 提前创建用户消息，以支持PROCESSING状态时返回promptContent
+        Long userMessageId = chatService.createUserMessage(
+                context.getSessionId(),
+                request.getInitialPrompt()
+        );
+
+        // 2. 创建调用记录，传入userMessageId
         String callSource = (String) context.getCustomData().get("callSource");
         LlmCallRecord callRecord = llmCallRecordService.createCallRecord(
                 request.getApiKeyId(),
@@ -217,15 +226,18 @@ public class MultiTurnConversationManagerImpl
                 context.getSessionId(),
                 null,
                 callSource,
-                null,
+                userMessageId,
                 null
         );
 
-        // 2. 保存第一条记录ID到上下文
+        // 2.1 清理缓存，确保PROCESSING状态时promptContent能立即返回
+        botPromptCacheService.clearCache();
+
+        // 3. 保存第一条记录ID到上下文
         context.setFirstCallRecordId(callRecord.getId());
         context.setCurrentParentId(callRecord.getId());
 
-        // 3. 调用AI模型
+        // 4. 调用AI模型
         String aiResponse;
         long llmCallStart = System.currentTimeMillis();
         long llmCallTime;
@@ -242,20 +254,20 @@ public class MultiTurnConversationManagerImpl
             return context;
         }
 
-        // 4. 解析响应
+        // 5. 解析响应
         ActionParser.ActionPack actionPack = parseResponse(aiResponse);
 
-        // 5. 保存响应
-        saveResponse(context, callRecord.getId(), request.getInitialPrompt(),
+        // 6. 保存响应（只创建助手消息，用户消息已提前创建）
+        saveResponse(context, callRecord.getId(), userMessageId,
                 aiResponse, llmCallTime);
 
-        // 6. 更新上下文
+        // 7. 更新上下文
         context.setCurrentRound(1);
         context.setCurrentPrompt(request.getInitialPrompt());
         context.setCurrentResponse(aiResponse);
         context.setUpdatedAt(LocalDateTime.now());
 
-        // 7. 添加到历史记录
+        // 8. 添加到历史记录
         context.getHistory().add(ConversationContext.RoundRecord.builder()
                 .round(1)
                 .prompt(request.getInitialPrompt())
@@ -263,7 +275,7 @@ public class MultiTurnConversationManagerImpl
                 .timestamp(System.currentTimeMillis())
                 .build());
 
-        // 8. 判断是否需要继续
+        // 9. 判断是否需要继续
         if (shouldContinue(context, aiResponse)) {
             // 需要多轮对话
             context.setState(ConversationContext.ConversationState.WAITING_FOR_TOOL);
@@ -317,7 +329,13 @@ public class MultiTurnConversationManagerImpl
     private ConversationContext executeNextRound(ConversationContext context, String nextPrompt) {
         log.info("执行第{}轮对话 - sessionId: {}", context.getCurrentRound() + 1, context.getSessionId());
 
-        // 1. 创建调用记录
+        // 1. 提前创建用户消息，以支持PROCESSING状态时返回promptContent
+        Long userMessageId = chatService.createUserMessage(
+                context.getSessionId(),
+                nextPrompt
+        );
+
+        // 2. 创建调用记录，传入userMessageId
         Long apiKeyId = (Long) context.getCustomData().get("apiKeyId");
         String modelName = (String) context.getCustomData().get("modelName");
         String callSource = (String) context.getCustomData().get("callSource");
@@ -329,11 +347,14 @@ public class MultiTurnConversationManagerImpl
                 context.getCurrentParentId(),
                 context.getCurrentRound() + 1,
                 callSource,
-                null,
+                userMessageId,
                 null
         );
 
-        // 2. 调用AI模型
+        // 2.1 清理缓存，确保PROCESSING状态时promptContent能立即返回
+        botPromptCacheService.clearCache();
+
+        // 3. 调用AI模型
         String aiResponse;
         long llmCallStart = System.currentTimeMillis();
         long llmCallTime;
@@ -347,20 +368,20 @@ public class MultiTurnConversationManagerImpl
             return context;
         }
 
-        // 3. 解析响应
+        // 4. 解析响应
         ActionParser.ActionPack actionPack = parseResponse(aiResponse);
 
-        // 4. 保存响应
-        saveResponse(context, callRecord.getId(), nextPrompt, aiResponse, llmCallTime);
+        // 5. 保存响应（只创建助手消息，用户消息已提前创建）
+        saveResponse(context, callRecord.getId(), userMessageId, aiResponse, llmCallTime);
 
-        // 5. 更新上下文
+        // 6. 更新上下文
         context.setCurrentRound(context.getCurrentRound() + 1);
         context.setCurrentPrompt(nextPrompt);
         context.setCurrentResponse(aiResponse);
         context.setCurrentParentId(callRecord.getId());
         context.setUpdatedAt(LocalDateTime.now());
 
-        // 6. 添加到历史记录
+        // 7. 添加到历史记录
         context.getHistory().add(ConversationContext.RoundRecord.builder()
                 .round(context.getCurrentRound())
                 .prompt(nextPrompt)
@@ -369,7 +390,7 @@ public class MultiTurnConversationManagerImpl
                 .timestamp(System.currentTimeMillis())
                 .build());
 
-        // 7. 判断是否继续
+        // 8. 判断是否继续
         if (shouldContinue(context, aiResponse)) {
             return executeToolCalls(context, actionPack);
         } else {
@@ -408,11 +429,14 @@ public class MultiTurnConversationManagerImpl
 
     /**
      * 保存响应
+     * <p>
+     * 用户消息已在创建LlmCallRecord之前创建，此处只创建助手消息并更新assistantMessageId
+     * </p>
      */
     private void saveResponse(ConversationContext context, Long callRecordId,
-                              String prompt, String response, long llmCallTime) {
+                              Long userMessageId, String response, long llmCallTime) {
         try {
-            // 1. 更新调用记录
+            // 1. 更新调用记录状态和响应内容
             llmCallRecordService.updateCallRecordSuccessInNewTransaction(
                     callRecordId,
                     response,
@@ -421,28 +445,32 @@ public class MultiTurnConversationManagerImpl
                     null,  // promptGenerationTimeMs
                     llmCallTime,
                     null,  // postActionTimeMs
-                    null,  // userMessageId
-                    null   // assistantMessageId
+                    userMessageId,
+                    null   // assistantMessageId 暂时为空
             );
 
-            // 2. 创建ChatMessage
-            Long[] messageIds = chatService.createAiTradeMessagePair(
+            // 2. 创建助手消息
+            Long assistantMessageId = chatService.createAssistantMessage(
                     context.getSessionId(),
-                    prompt,
                     response,
                     llmCallTime
             );
 
-            // 3. 更新调用记录的消息ID
-            llmCallRecordService.updateCallRecordSuccessInNewTransaction(
-                    callRecordId,
-                    null,
-                    null, null, null, null, null,
-                    null,
-                    null, null, null,
-                    messageIds[0],
-                    messageIds[1]
-            );
+            // 3. 更新调用记录的助手消息ID
+            if (assistantMessageId != null) {
+                llmCallRecordService.updateCallRecordSuccessInNewTransaction(
+                        callRecordId,
+                        null,
+                        null, null, null, null, null,
+                        null,
+                        null, null, null,
+                        null,
+                        assistantMessageId
+                );
+            }
+
+            // 4. 清理缓存，确保更新后的数据能立即返回
+            botPromptCacheService.clearCache();
 
         } catch (Exception e) {
             log.error("保存响应失败 - callRecordId: {}", callRecordId, e);

@@ -91,7 +91,7 @@ const Top30InstrumentSelector: React.FC<Top30InstrumentSelectorProps> = ({
         if (selectedInstrument === lastFetchInstId &&
             now - lastFetchTime < cacheDuration &&
             cachedResponse) {
-            console.log('💰 使用缓存的价格数据:', selectedInstrument);
+            // console.log('💰 使用缓存的价格数据:', selectedInstrument);
             if (cachedResponse.success && cachedResponse.data) {
                 const priceData = cachedResponse.data;
                 setRealtimePrice({
@@ -113,7 +113,7 @@ const Top30InstrumentSelector: React.FC<Top30InstrumentSelectorProps> = ({
         }
 
         try {
-            console.log('🔄 获取实时价格数据:', selectedInstrument);
+            // console.log('🔄 获取实时价格数据:', selectedInstrument);
             const response = await getRealtimePrice(selectedInstrument, apiKeyId);
 
             // 更新缓存
@@ -169,7 +169,7 @@ const Top30InstrumentSelector: React.FC<Top30InstrumentSelectorProps> = ({
     useEffect(() => {
         if (selectedInstrument && !isActive) {
             const timeout = setTimeout(() => {
-                console.log('🕐 延迟启动Top30InstrumentSelector定时器，延迟:', delayedStartTime, 'ms');
+                // console.log('🕐 延迟启动Top30InstrumentSelector定时器，延迟:', delayedStartTime, 'ms');
                 start();
             }, delayedStartTime);
 
@@ -366,7 +366,7 @@ const Top30InstrumentSelector: React.FC<Top30InstrumentSelectorProps> = ({
                 open={dropdownOpen}
                 onOpenChange={(open) => {
                     setDropdownOpen(open);
-                    console.log('下拉框状态:', open ? '打开' : '关闭');
+                    // console.log('下拉框状态:', open ? '打开' : '关闭');
                 }}
                 optionLabelProp="label"
                 // 修复下拉框关闭问题的关键配置

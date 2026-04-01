@@ -18,7 +18,8 @@ import java.util.Optional;
  * @date 2026-02-12 11:25
  */
 @Repository
-public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
+public interface ChatSessionRepository
+        extends JpaRepository<ChatSession, Long> {
 
     List<ChatSession> findByUserId(String userId);
 
@@ -44,4 +45,37 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     @Modifying
     @Query("UPDATE ChatSession s SET s.sessionName = :sessionName, s.updatedTime = CURRENT_TIMESTAMP WHERE s.sessionId = :sessionId AND s.userId = :userId")
     void updateSessionNameAndTime(@Param("sessionId") Long sessionId, @Param("userId") String userId, @Param("sessionName") String sessionName);
+
+    // 根据userId和agentId查询会话（智能体会话）
+    List<ChatSession> findByUserIdAndAgentId(String userId, Long agentId);
+
+    // 根据userId查询agentId为null的会话（默认会话）
+    List<ChatSession> findByUserIdAndAgentIdIsNull(String userId);
+
+    // 根据userId和agentId查询状态为active的会话
+    List<ChatSession> findByUserIdAndAgentIdAndStatus(String userId, Long agentId, String status);
+
+    // 根据userId查询agentId为null且状态为active的会话
+    List<ChatSession> findByUserIdAndAgentIdIsNullAndStatus(String userId, String status);
+
+    // 查询非pre_active状态的会话
+    @Query("SELECT s FROM ChatSession s WHERE s.userId = :userId AND s.status = 'active' ORDER BY s.updatedTime DESC")
+    List<ChatSession> findValidSessionsByUserId(@Param("userId") String userId);
+
+    // 按agentId查询非pre_active状态的会话
+    @Query("SELECT s FROM ChatSession s WHERE s.userId = :userId AND s.agentId = :agentId AND s.status = 'active' ORDER BY s.updatedTime DESC")
+    List<ChatSession> findValidSessionsByUserIdAndAgentId(@Param("userId") String userId, @Param("agentId") Long agentId);
+
+    // 按agentId为null查询非pre_active状态的会话
+    @Query("SELECT s FROM ChatSession s WHERE s.userId = :userId AND s.agentId IS NULL AND s.status = 'active' ORDER BY s.updatedTime DESC")
+    List<ChatSession> findValidSessionsByUserIdAndAgentIdIsNull(@Param("userId") String userId);
+
+    // 查询pre_active状态的空会话（没有消息的）
+    @Query("SELECT s FROM ChatSession s WHERE s.status = 'pre_active' AND s.sessionId NOT IN " +
+            "(SELECT DISTINCT m.session.sessionId FROM ChatMessage m)")
+    List<ChatSession> findEmptyPreActiveSessions();
+
+    // 获取最新有效会话
+    @Query("SELECT s FROM ChatSession s WHERE s.userId = :userId AND s.status = 'active' ORDER BY s.updatedTime DESC LIMIT 1")
+    Optional<ChatSession> findLatestValidSessionByUserId(@Param("userId") String userId);
 }

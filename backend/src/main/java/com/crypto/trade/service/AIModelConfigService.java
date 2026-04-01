@@ -127,24 +127,21 @@ public class AIModelConfigService {
             throw new IllegalArgumentException("模型ID已存在: " + modelInfo.getModelId());
         }
 
-        // 更新字段
-        updateEntityFromDTO(existingConfig, modelInfo);
-
-        // 验证模型配置的完整性
-        validateModelConfig(existingConfig);
-
         // 如果设置为默认模型，先取消所有其他默认模型
-        if (Boolean.TRUE.equals(modelInfo.getDefaultModel())) {
+        // 注意：只有当模型从非默认变为默认时才需要执行
+        if (Boolean.TRUE.equals(modelInfo.getDefaultModel())
+                && !Boolean.TRUE.equals(existingConfig.getDefaultModel())) {
             repository.unsetAllDefaultModels();
         }
-
+        // 更新字段
+        updateEntityFromDTO(existingConfig, modelInfo);
+        // 验证模型配置的完整性
+        validateModelConfig(existingConfig);
         AIModelConfig savedConfig = repository.save(existingConfig);
-
         // 验证模型可用性（可选）
         if (Boolean.TRUE.equals(savedConfig.getIsActive())) {
             validateModelAvailability(savedConfig.getModelId());
         }
-
         return convertToDTO(savedConfig);
     }
 

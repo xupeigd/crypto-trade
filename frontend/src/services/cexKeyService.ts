@@ -136,6 +136,30 @@ export const cexKeyService = {
     },
 
     /**
+     * 获取用于编辑的密钥数据
+     * ENV存储：返回原始环境变量名
+     * DB存储：敏感字段返回null（前端留空，用户不填则不覆盖）
+     */
+    getKeyForEdit: async (id: number): Promise<CexKeyDecryptedModel> => {
+        try {
+            const response = await api.get<ApiResponse<CexKeyDecryptedModel>>(`/cex-keys/${id}/edit`);
+
+            if (!response.data.success) {
+                throw new Error(response.data.message || '获取编辑用密钥数据失败');
+            }
+
+            if (!response.data.data) {
+                throw new Error('获取编辑用密钥数据返回数据为空');
+            }
+
+            return response.data.data;
+        } catch (error) {
+            console.error('获取编辑用密钥数据失败:', error);
+            throw error;
+        }
+    },
+
+    /**
      * 验证密钥请求参数
      */
     validateCreateRequest: (request: CexKeyCreateRequest): { isValid: boolean; errors: string[] } => {

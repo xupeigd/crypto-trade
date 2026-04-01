@@ -1,6 +1,7 @@
 package com.crypto.trade.service;
 
 import com.crypto.trade.dto.response.BotPromptHistoryResponse;
+import com.crypto.trade.dto.response.FlowNodeStatusResponse;
 import com.crypto.trade.entity.ChatMessage;
 import com.crypto.trade.entity.LlmCallRecord;
 import com.crypto.trade.entity.TradeAction;
@@ -13,6 +14,8 @@ import com.crypto.trade.repository.TradingOrderRepository;
 import com.crypto.trade.service.conversation.ActionParser;
 import com.crypto.trade.util.AiResponseParserUtil;
 import com.crypto.trade.util.JsonUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +51,8 @@ public class BotPromptCacheService {
     TradeBalanceSnapshotRepository tradeBalanceSnapshotRepository;
     @Autowired
     TradingOrderRepository tradingOrderRepository;
+    @Autowired
+    ObjectMapper objectMapper;
 
     /**
      * 从缓存获取Prompt历史列表
@@ -115,6 +120,7 @@ public class BotPromptCacheService {
             List<BotPromptHistoryResponse> result = callRecords.stream()
                     .map(this::convertCallRecordToPromptHistoryResponse)
                     .collect(Collectors.toList());
+            applySessionFlowFallback(result);
 
             // 缓存结果
             nativeCache.put(cacheKey, result);
@@ -127,7 +133,10 @@ public class BotPromptCacheService {
             // 降级：直接查询数据库
             return llmCallRecordService.getCallHistory(apiKeyId, limit, actionFilter, modelFilter, callSourceFilter, openCloseFilter).stream()
                     .map(this::convertCallRecordToPromptHistoryResponse)
-                    .collect(Collectors.toList());
+                    .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
+                        applySessionFlowFallback(list);
+                        return list;
+                    }));
         }
     }
 
@@ -300,6 +309,9 @@ public class BotPromptCacheService {
 
         // 统计关联订单数量
         Long relatedOrderCount = tradingOrderRepository.countByRecordId(callRecord.getId());
+        List<FlowNodeStatusResponse> flowNodes = parseFlowNodes(callRecord.getFlowNodesJson());
+        String currentNodeCode = getCurrentNodeCode(flowNodes);
+        boolean flowFinished = isFlowFinished(flowNodes);
 
         // 【新增】查询 TradeAction 获取风控状态和交易动作状态
         String riskControlStatus = null;
@@ -365,7 +377,91 @@ public class BotPromptCacheService {
                 .relatedOrderCount(relatedOrderCount != null ? relatedOrderCount.intValue() : 0)
                 .riskControlStatus(riskControlStatus) // 【新增】风控状态
                 .tradeActionStatus(tradeActionStatus) // 【新增】交易动作状态
+                .flowNodes(flowNodes)
+                .currentNodeCode(currentNodeCode)
+                .flowFinished(flowFinished)
                 .build();
+    }
+
+    private List<FlowNodeStatusResponse> parseFlowNodes(String flowNodesJson) {
+        if (!StringUtils.hasText(flowNodesJson)) {
+            return null;
+        }
+        try {
+            List<FlowNodeStatusResponse> nodes = objectMapper.readValue(
+                    flowNodesJson,
+                    new TypeReference<List<FlowNodeStatusResponse>>() {
+                    }
+            );
+            if (CollectionUtils.isEmpty(nodes)) {
+                return null;
+            }
+            return nodes.stream()
+                    .sorted(Comparator.comparing(FlowNodeStatusResponse::getOrderNo, Comparator.nullsLast(Integer::compareTo)))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("解析流程节点失败 - flowNodesJson: {}", flowNodesJson, e);
+            return null;
+        }
+    }
+
+    private String getCurrentNodeCode(List<FlowNodeStatusResponse> flowNodes) {
+        if (CollectionUtils.isEmpty(flowNodes)) {
+            return null;
+        }
+        Optional<FlowNodeStatusResponse> runningNode = flowNodes.stream()
+                .filter(node -> "RUNNING".equals(node.getStatus()))
+                .findFirst();
+        if (runningNode.isPresent()) {
+            return runningNode.get().getNodeCode();
+        }
+        Optional<FlowNodeStatusResponse> failedNode = flowNodes.stream()
+                .filter(node -> "FAILED".equals(node.getStatus()))
+                .findFirst();
+        if (failedNode.isPresent()) {
+            return failedNode.get().getNodeCode();
+        }
+        return flowNodes.stream()
+                .filter(node -> !"PENDING".equals(node.getStatus()) && !"SKIPPED".equals(node.getStatus()))
+                .max(Comparator.comparing(FlowNodeStatusResponse::getOrderNo, Comparator.nullsLast(Integer::compareTo)))
+                .map(FlowNodeStatusResponse::getNodeCode)
+                .orElse(null);
+    }
+
+    private boolean isFlowFinished(List<FlowNodeStatusResponse> flowNodes) {
+        if (CollectionUtils.isEmpty(flowNodes)) {
+            return true;
+        }
+        return flowNodes.stream().noneMatch(node -> "RUNNING".equals(node.getStatus()) || "PENDING".equals(node.getStatus()))
+                && flowNodes.stream().anyMatch(node -> "SUCCESS".equals(node.getStatus()) || "FAILED".equals(node.getStatus()));
+    }
+
+    private void applySessionFlowFallback(List<BotPromptHistoryResponse> responses) {
+        if (CollectionUtils.isEmpty(responses)) {
+            return;
+        }
+        Map<Long, BotPromptHistoryResponse> sessionFlowSource = new HashMap<>();
+        for (BotPromptHistoryResponse response : responses) {
+            if (response.getChatSessionId() == null || CollectionUtils.isEmpty(response.getFlowNodes())) {
+                continue;
+            }
+            BotPromptHistoryResponse existed = sessionFlowSource.get(response.getChatSessionId());
+            if (existed == null || (response.getCreatedTime() != null && (existed.getCreatedTime() == null || response.getCreatedTime() > existed.getCreatedTime()))) {
+                sessionFlowSource.put(response.getChatSessionId(), response);
+            }
+        }
+        for (BotPromptHistoryResponse response : responses) {
+            if (response.getChatSessionId() == null || !CollectionUtils.isEmpty(response.getFlowNodes())) {
+                continue;
+            }
+            BotPromptHistoryResponse source = sessionFlowSource.get(response.getChatSessionId());
+            if (source == null) {
+                continue;
+            }
+            response.setFlowNodes(source.getFlowNodes());
+            response.setCurrentNodeCode(source.getCurrentNodeCode());
+            response.setFlowFinished(source.getFlowFinished());
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ import {RobotOutlined} from '@ant-design/icons';
 import BotStatus from './BotStatus';
 import BotControl from './BotControl';
 import PromptHistory from './PromptHistory';
+import PromptFlowProgressBoard from './PromptFlowProgressBoard';
 import PromptEditor from '../../components/bot/PromptEditor';
 import {botService} from '../../services/botService';
 import {AIInfoModel} from '../../types/aiInfoModel';
@@ -225,6 +226,11 @@ const BotPage: React.FC = () => {
                         )}
                     </Card>
                 </div>
+
+                <PromptFlowProgressBoard
+                    apiKeyId={selectedApiKeyId}
+                    refreshTrigger={refreshTrigger}
+                />
 
                 {/* 下栏 - 两栏布局 */}
                 <div style={{

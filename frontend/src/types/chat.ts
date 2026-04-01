@@ -2,7 +2,7 @@ export interface ChatMessage {
     messageId: number;
     sessionId: number;
     userId?: string;
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'tool';
     content: string;
     tokensUsed?: number;
     processingTimeMs?: number;
@@ -15,6 +15,7 @@ export interface ChatSession {
     userId: string;
     status: 'active' | 'archived';
     modelName: string;
+    agentId?: number;
     createdTime: string;
     updatedTime: string;
     messages?: ChatMessage[];
@@ -24,6 +25,7 @@ export interface SendMessageRequest {
     sessionId?: number;
     message: string;
     userId?: string;
+    systemPrompt?: string;
 }
 
 export interface SendMessageResponse {

@@ -28,15 +28,126 @@ import {
 /**
  * 导入必要的图表组件及类型定义
  * CandlestickData: 基础K线数据结构（开高低收成交量）
- * COLORS: 图表颜色配置系统
- * klineBarsFromCandles: 将原始蜡烛数据转换为轻量级图表所需的 Bar 格式
- * KLineChart: 核心 K 线图展示组件
+ * COLORS: 图表颜色配置系统（用于右侧指标控制栏颜色）
+ * LightweightCandlestickChart: 基于 lightweight-charts 的 K 线图组件
  * tradingService: 与后端进行交易数据交互的服务层
  */
 import {CandlestickData, COLORS} from '../../pages/trading/components/CandlestickChart';
-import {klineBarsFromCandles, KLineChart} from '../charts/KLineChart';
+import LightweightCandlestickChart, {KLineBar} from '../charts/LightweightCandlestickChart';
 import {IndicatorDataPoint, TechnicalIndicatorData, tradingService} from '../../services/tradingService';
 import {getIndicatorValues} from '../../utils/indicatorValues';
+
+/**
+ * 将 CandlestickData[] 转换为 KLineBar[] 格式
+ * 用于 LightweightCandlestickChart 组件
+ */
+const candlestickDataToKLineBars = (candles: CandlestickData[]): KLineBar[] => {
+    return candles
+        .filter(c => c && Number.isFinite(c.timestamp))
+        .map(c => ({
+            time: c.timestamp,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+            volume: c.volume || 0,
+            confirmed: c.confirm === 1
+        }))
+        .sort((a, b) => a.time - b.time);
+};
+
+/**
+ * 将后端指标数据格式转换为 LightweightCandlestickChart 所需的扁平化格式
+ * 后端格式: {EMA: {data: {values: [{timestamp, multiPeriodValues: {ema_12: value}}]}}}
+ * 表格解析格式: {BOLL: {data: {values: [{timestamp, upperBand, middleBand, lowerBand}]}}}
+ * 目标格式: {EMA_ema_12: [{time, value}]} 或 {BOLL_boll_20: [{time, upper, middle, lower}]}
+ */
+const transformIndicatorsForChart = (rawIndicators: Record<string, TechnicalIndicatorData> | undefined) => {
+    if (!rawIndicators) return undefined;
+
+    const result: Record<string, Array<{
+        time: number;
+        value?: number;
+        upper?: number;
+        middle?: number;
+        lower?: number;
+        diff?: number;
+        signal?: number;
+        histogram?: number;
+        k?: number;
+        d?: number;
+        j?: number;
+    }>> = {};
+
+    Object.entries(rawIndicators).forEach(([key, indicator]) => {
+        const values = indicator?.data?.values || indicator?.values;
+        if (!values || !Array.isArray(values)) return;
+
+        // 特殊处理 BOLL：检查是否有直接的 upperBand/middleBand/lowerBand 字段（表格解析格式）
+        if (key === 'BOLL') {
+            const hasDirectBollFields = values.some((v: any) =>
+                v.upperBand !== undefined || v.middleBand !== undefined || v.lowerBand !== undefined
+            );
+
+            if (hasDirectBollFields) {
+                const period = indicator?.data?.period || indicator?.period || 20;
+                const seriesKey = `BOLL_boll_${period}`;
+                result[seriesKey] = values.map((v: any) => ({
+                    time: v.timestamp,
+                    upper: v.upperBand ?? undefined,
+                    middle: v.middleBand ?? undefined,
+                    lower: v.lowerBand ?? undefined,
+                }));
+                return; // 跳过后面的 multiPeriodValues 处理
+            }
+        }
+
+        values.forEach((v: IndicatorDataPoint) => {
+            const multiPeriod = v.multiPeriodValues;
+            if (!multiPeriod) return;
+
+            Object.entries(multiPeriod).forEach(([periodKey, periodData]: [string, any]) => {
+                const seriesKey = `${key}_${periodKey}`;
+
+                if (key === 'MACD') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        diff: periodData.diff,
+                        signal: periodData.dea,
+                        histogram: periodData.macd,
+                    });
+                } else if (key === 'BOLL') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        upper: periodData.upper,
+                        middle: periodData.middle,
+                        lower: periodData.lower,
+                    });
+                } else if (key === 'KDJ') {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        k: periodData.k,
+                        d: periodData.d,
+                        j: periodData.j,
+                    });
+                } else {
+                    if (!result[seriesKey]) result[seriesKey] = [];
+                    result[seriesKey].push({
+                        time: v.timestamp,
+                        value: periodData,
+                    });
+                }
+            });
+        });
+    });
+
+    // 按时间排序
+    Object.values(result).forEach(arr => arr.sort((a, b) => a.time - b.time));
+    return result;
+};
 
 /**
  * 组件 Props 接口定义
@@ -128,7 +239,7 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
      * useApiData: 是否启用从后端 API 获取实时数据（全屏模式下默认开启）
      */
     const [chartData, setChartData] = useState<CandlestickData[]>([]);
-    const bars = useMemo(() => klineBarsFromCandles(chartData), [chartData]);
+    const bars = useMemo(() => candlestickDataToKLineBars(chartData), [chartData]);
     const [indicators, setIndicators] = useState<{
         EMA?: TechnicalIndicatorData;
         SMA?: TechnicalIndicatorData;
@@ -142,6 +253,7 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
         OBV?: TechnicalIndicatorData;
         ADX?: TechnicalIndicatorData;
     }>({});
+    const transformedIndicators = useMemo(() => transformIndicatorsForChart(indicators), [indicators]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<string>('4H');
@@ -151,13 +263,11 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
     /**
      * UI 交互与过滤配置状态
      * limit: 当前 K 线采样数量
-     * reverseOrder: 数据展示顺序（是否从右向左排列）
      * enabledIndicators: 当前开启计算并展示的指标列表，初始默认开启 EMA, RSI, BOLL
      * visibleIndicators: 详细控制每个指标（含多周期）在图表中的显示/隐藏状态
      * indicatorDrawerVisible: 技术指标选择与配置侧边抽屉的开关状态
      */
     const [limit, setLimit] = useState<number>(120);
-    const [reverseOrder, setReverseOrder] = useState<boolean>(true);
     const [enabledIndicators, setEnabledIndicators] = useState<string[]>(['EMA', 'RSI', 'BOLL']);
     const [visibleIndicators, setVisibleIndicators] = useState<Record<string, boolean>>({});
     const [indicatorDrawerVisible, setIndicatorDrawerVisible] = useState<boolean>(false);
@@ -1475,52 +1585,67 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
         return null;
     };
 
-    // 初始化visibleIndicators
+    // 初始化visibleIndicators - 保留用户已有的选择状态，只对新指标设置默认值
     useEffect(() => {
         if (!indicators || Object.keys(indicators).length === 0) return;
 
-        const nextVisible: Record<string, boolean> = {};
+        setVisibleIndicators(prev => {
+            // 保留现有选择，只添加新出现的指标
+            const nextVisible: Record<string, boolean> = {...prev};
 
-        Object.keys(indicators).forEach(key => {
-            const indicator = indicators[key as keyof typeof indicators];
-            const data = getIndicatorData(indicator);
-            if (!data) return;
+            Object.keys(indicators).forEach(key => {
+                const indicator = indicators[key as keyof typeof indicators];
+                const data = getIndicatorData(indicator);
+                if (!data) return;
 
-            // 检查多周期
-            const samplePoint = Array.isArray(data.values)
-                ? data.values.find((p: any) => p?.multiPeriodValues && Object.keys(p.multiPeriodValues).length > 0)
-                : undefined;
-            const isMultiPeriod = !!samplePoint?.multiPeriodValues;
+                // 检查多周期
+                const samplePoint = Array.isArray(data.values)
+                    ? data.values.find((p: any) => p?.multiPeriodValues && Object.keys(p.multiPeriodValues).length > 0)
+                    : undefined;
+                const isMultiPeriod = !!samplePoint?.multiPeriodValues;
 
-            if (isMultiPeriod && samplePoint?.multiPeriodValues) {
-                const prefixMap: { [key: string]: string } = {
-                    EMA: 'ema_', SMA: 'sma_', WMA: 'wma_', RSI: 'rsi_'
-                };
-                const prefix = prefixMap[key] || key.toLowerCase() + '_';
+                if (isMultiPeriod && samplePoint?.multiPeriodValues) {
+                    const prefixMap: { [key: string]: string } = {
+                        EMA: 'ema_', SMA: 'sma_', WMA: 'wma_', RSI: 'rsi_'
+                    };
+                    const prefix = prefixMap[key] || key.toLowerCase() + '_';
 
-                Object.keys(samplePoint.multiPeriodValues).forEach(k => {
-                    if (key === 'BOLL' && k.startsWith('boll_')) {
-                        const match = k.match(/boll_(\d+)/);
-                        if (match) {
-                            nextVisible[`BOLL_${match[1]}`] = true;
+                    Object.keys(samplePoint.multiPeriodValues).forEach(k => {
+                        if (key === 'BOLL' && k.startsWith('boll_')) {
+                            const match = k.match(/boll_(\d+)/);
+                            if (match) {
+                                const indicatorKey = `BOLL_${match[1]}`;
+                                // 只设置还没有在 prev 中存在的指标
+                                if (!prev.hasOwnProperty(indicatorKey)) {
+                                    nextVisible[indicatorKey] = true;
+                                }
+                            }
+                        } else if (k.startsWith(prefix)) {
+                            const period = parseInt(k.replace(prefix, ''));
+                            if (!isNaN(period)) {
+                                const indicatorKey = `${key}_${period}`;
+                                // 只设置还没有在 prev 中存在的指标
+                                if (!prev.hasOwnProperty(indicatorKey)) {
+                                    nextVisible[indicatorKey] = true;
+                                }
+                            }
                         }
-                    } else if (k.startsWith(prefix)) {
-                        const period = parseInt(k.replace(prefix, ''));
-                        if (!isNaN(period)) {
-                            nextVisible[`${key}_${period}`] = true;
+                    });
+                } else {
+                    // 单周期兼容
+                    const period = data.period;
+                    if (period) {
+                        const indicatorKey = `${key}_${period}`;
+                        // 只设置还没有在 prev 中存在的指标
+                        if (!prev.hasOwnProperty(indicatorKey)) {
+                            nextVisible[indicatorKey] = true;
                         }
                     }
-                });
-            } else {
-                // 单周期兼容
-                const period = data.period;
-                if (period) {
-                    nextVisible[`${key}_${period}`] = true;
                 }
-            }
-        });
+            });
 
-        setVisibleIndicators(nextVisible);
+            return nextVisible;
+        });
     }, [indicators]);
 
 
@@ -1617,22 +1742,6 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
                     <Space size={8}>
                         {/* 动态标题：展示合约名称、当前周期及数据获取模式 */}
                         <span>{instId ? `${instId}-` : ''}技术指标K线图-{timeFrame}{useApiData ? '(实时数据)' : '(表格数据)'}</span>
-
-                        {/* 仅在非全屏模式下显示的排序切换器 */}
-                        {!isFullscreen && (
-                            <Segmented
-                                size="small"
-                                value={reverseOrder ? 'left' : 'right'}
-                                options={[
-                                    {label: '←', value: 'left', disabled: loading || reverseOrder},
-                                    {label: '→', value: 'right', disabled: loading || !reverseOrder},
-                                ]}
-                                onChange={(value) => {
-                                    const next = value as 'left' | 'right';
-                                    setReverseOrder(next === 'left');
-                                }}
-                            />
-                        )}
                     </Space>
 
                     <Space size={0}>
@@ -1756,20 +1865,6 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
                                 }
                             }}
                         />
-
-                        {/* X 轴方向翻转控制 */}
-                        <Segmented
-                            size="small"
-                            value={reverseOrder ? 'left' : 'right'}
-                            options={[
-                                {label: '←', value: 'left', disabled: loading || reverseOrder},
-                                {label: '→', value: 'right', disabled: loading || !reverseOrder},
-                            ]}
-                            onChange={(value) => {
-                                const next = value as 'left' | 'right';
-                                setReverseOrder(next === 'left');
-                            }}
-                        />
                     </Space>
 
                     {/* 右侧区域: 核心技术指标的快速切换与配置入口 */}
@@ -1887,26 +1982,27 @@ const IndicatorChartModal: React.FC<IndicatorChartModalProps> = ({
                         <div style={{flex: 1, position: 'relative', overflow: 'hidden'}}>
                             <div
                                 style={{
-                                    width: '100%',
-                                    height: '100%',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
                                     minWidth: isFullscreen ? '400px' : '720px',
                                     minHeight: isFullscreen ? '300px' : '450px'
                                 }}
                             >
-                                {/* 调用轻量级 K 线图组件 */}
-                                <KLineChart
-                                    symbol={instId ?? undefined}
-                                    period={normalizeTimeFrame(timeFrame) as any}
+                                {/* 调用 lightweight-charts K 线图组件 */}
+                                <LightweightCandlestickChart
                                     data={bars}
-                                    reverseOrder={reverseOrder}
+                                    timeFrame={normalizeTimeFrame(timeFrame)}
                                     markPrice={chartData.length > 0 ? chartData[chartData.length - 1].close : null}
                                     markPriceColor={chartData.length > 0 ? (() => {
                                         const currentCandle = chartData[chartData.length - 1];
                                         return currentCandle.close >= currentCandle.open ? '#52c41a' : '#ff4d4f';
                                     })() : undefined}
-                                    indicators={indicators}
+                                    indicators={transformedIndicators}
                                     visibleIndicators={visibleIndicators}
-                                    isDebugMode={true}
+                                    maxVisibleBars={useApiData ? limit : 30}
                                 />
                             </div>
                         </div>

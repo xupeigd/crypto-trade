@@ -1,7 +1,7 @@
 create table if not exists flyway_schema_history
 (
     installed_rank int                                 not null
-        primary key,
+    primary key,
     version        varchar(50)                         null,
     description    varchar(200)                        not null,
     type           varchar(20)                         not null,
@@ -11,7 +11,7 @@ create table if not exists flyway_schema_history
     installed_on   timestamp default CURRENT_TIMESTAMP not null,
     execution_time int                                 not null,
     success        tinyint(1)                          not null
-);
+    );
 
 create index flyway_schema_history_s_idx
     on flyway_schema_history (success);
@@ -19,7 +19,7 @@ create index flyway_schema_history_s_idx
 create table if not exists t_account_equity_snapshot
 (
     equity_id             bigint auto_increment
-        primary key,
+    primary key,
     api_key_id            bigint         not null,
     available_equity_usdt decimal(38, 8) not null,
     created_time          datetime(6)    null,
@@ -29,13 +29,29 @@ create table if not exists t_account_equity_snapshot
     update_time           datetime(6)    not null,
     updated_time          datetime(6)    null,
     constraint UKdk64scbibng34gvkujvdgwp14
-        unique (api_key_id)
-);
+    unique (api_key_id)
+    );
+
+create table if not exists t_agent_config
+(
+    id              bigint auto_increment
+    primary key,
+    created_at      datetime(6)              not null,
+    description     text                     null,
+    is_active       bit                      not null,
+    model_config_id bigint                   null,
+    name            varchar(100)             not null,
+    system_prompt   text                     null,
+    tools           text                     null,
+    updated_at      datetime(6)              not null,
+    skills          text                     null,
+    execution_mode  enum ('LIVE', 'DRY_RUN') null
+    );
 
 create table if not exists t_ai_model_configs
 (
     config_id       bigint auto_increment
-        primary key,
+    primary key,
     cost_per_token  decimal(10, 6) null,
     created_time    datetime(6)    not null,
     default_model   bit            not null,
@@ -56,13 +72,40 @@ create table if not exists t_ai_model_configs
     timeout_seconds int            not null,
     extra_body      text           null,
     constraint UK_n4xtdjcr5vxi6bufd5ftt4rlu
-        unique (model_id)
-);
+    unique (model_id)
+    );
+
+create table if not exists t_attention_queue
+(
+    id                    bigint auto_increment
+    primary key,
+    actual_trigger_time   datetime(6)  null,
+    api_key_id            bigint       not null,
+    create_time           datetime(6)  not null,
+    expected_trigger_time datetime(6)  not null,
+    inst_id               varchar(50)  null,
+    priority              int          null,
+    query_limit           int          null,
+    record_id             bigint       not null,
+    remark                varchar(500) null,
+    status                varchar(20)  not null,
+    timeframe             varchar(20)  null,
+    update_time           datetime(6)  null
+    );
+
+create index idx_expected_trigger_time
+    on t_attention_queue (expected_trigger_time);
+
+create index idx_record_id
+    on t_attention_queue (record_id);
+
+create index idx_status
+    on t_attention_queue (status);
 
 create table if not exists t_cex_api_call_records
 (
     id             bigint auto_increment
-        primary key,
+    primary key,
     api_path       varchar(500)                                                                                                      not null,
     api_type       enum ('PLACE_ORDER', 'CLOSE_POSITION', 'CANCEL_ORDER', 'SET_ALGO_ORDER', 'AMEND_ALGO_ORDER', 'CANCEL_ALGO_ORDER') not null,
     call_time      datetime(6)                                                                                                       not null,
@@ -81,7 +124,7 @@ create table if not exists t_cex_api_call_records
     status         enum ('PENDING', 'SUCCESS', 'FAILED', 'TIMEOUT')                                                                  not null,
     update_time    datetime(6)                                                                                                       null,
     api_key_id     bigint                                                                                                            null
-);
+    );
 
 create index idx_api_type
     on t_cex_api_call_records (api_type);
@@ -107,7 +150,7 @@ create index idx_status
 create table if not exists t_cex_api_keys
 (
     key_id          bigint auto_increment
-        primary key,
+    primary key,
     access_key      varchar(200)       not null,
     cex_name        varchar(50)        not null,
     created_time    datetime(6)        null,
@@ -118,12 +161,12 @@ create table if not exists t_cex_api_keys
     status          varchar(20)        null,
     storage_type    enum ('DB', 'ENV') not null,
     updated_time    datetime(6)        null
-);
+    );
 
 create table if not exists del_t_trading_orders
 (
     id                  bigint auto_increment
-        primary key,
+    primary key,
     amt                 decimal(38, 8) not null,
     api_key_id          bigint         null,
     avg_px              decimal(38, 8) null,
@@ -164,15 +207,15 @@ create table if not exists del_t_trading_orders
     submitted_time      datetime(6)    null,
     take_profit_enabled bit            null,
     constraint UK_c8q87ivunqj7xj5mof17b7vrv
-        unique (order_id),
+    unique (order_id),
     constraint FK9fl6t0xo1umg777vxojdm3ltf
-        foreign key (api_key_id) references t_cex_api_keys (key_id)
-);
+    foreign key (api_key_id) references t_cex_api_keys (key_id)
+    );
 
 create table if not exists t_cex_balances
 (
     balance_id          bigint auto_increment
-        primary key,
+    primary key,
     api_key_id          bigint         null,
     available_balance   decimal(38, 8) not null,
     cex_name            varchar(50)    not null,
@@ -183,12 +226,12 @@ create table if not exists t_cex_balances
     total_balance       decimal(38, 8) not null,
     updated_time        datetime(6)    null,
     usd_value           decimal(38, 8) null
-);
+    );
 
 create table if not exists t_cex_instruments
 (
     id                  bigint auto_increment
-        primary key,
+    primary key,
     alias               varchar(100) null,
     base_ccy            varchar(20)  null,
     category            varchar(20)  null,
@@ -222,15 +265,29 @@ create table if not exists t_cex_instruments
     updated_at          datetime(6)  null,
     is_live_trading     bit          not null,
     constraint UK4yjaj7tgm0fkjesfbl8suu5e5
-        unique (provider, inst_id),
+    unique (provider, inst_id),
     constraint UKs3wpr5ocermyorr2aw9533e0g
-        unique (provider, inst_id, is_live_trading)
-);
+    unique (provider, inst_id, is_live_trading)
+    );
+
+create table if not exists t_cex_proxy_bindings
+(
+    binding_id   bigint auto_increment
+    primary key,
+    cex_name     varchar(50)  not null,
+    created_time datetime(6)  not null,
+    description  varchar(500) null,
+    proxy_id     bigint       not null,
+    status       varchar(20)  not null,
+    updated_time datetime(6)  not null,
+    constraint UK_q3p6vjech0hjjbpp1rg6rp8sr
+    unique (cex_name)
+    );
 
 create table if not exists t_cex_trading_orders
 (
     id               bigint auto_increment
-        primary key,
+    primary key,
     acc_fill_sz      varchar(50)    null,
     amt              decimal(38, 8) null,
     api_key_id       bigint         not null,
@@ -269,39 +326,42 @@ create table if not exists t_cex_trading_orders
     action_id        bigint         null,
     record_id        bigint         null,
     constraint UK_80rmora2mhfaamgbk3co61ce2
-        unique (order_id)
-);
+    unique (order_id)
+    );
 
 create table if not exists t_chat_sessions
 (
     session_id   bigint auto_increment
-        primary key,
+    primary key,
     created_time datetime(6)  null,
     model_name   varchar(50)  null,
     session_name varchar(100) null,
     status       varchar(20)  null,
     updated_time datetime(6)  null,
-    user_id      varchar(50)  null
-);
+    user_id      varchar(50)  null,
+    agent_id     bigint       null
+    );
 
 create table if not exists t_chat_messages
 (
     message_id         bigint auto_increment
-        primary key,
-    content            text        not null,
-    created_time       datetime(6) null,
-    processing_time_ms bigint      null,
-    role               varchar(20) not null,
-    tokens_used        int         null,
-    session_id         bigint      not null,
+    primary key,
+    content            text         not null,
+    created_time       datetime(6)  null,
+    processing_time_ms bigint       null,
+    role               varchar(20)  not null,
+    tokens_used        int          null,
+    session_id         bigint       not null,
+    function_name      varchar(100) null,
+    tool_call_id       varchar(100) null,
     constraint FK68dtlidayv2g2p21p1p2xbn12
-        foreign key (session_id) references t_chat_sessions (session_id)
-);
+    foreign key (session_id) references t_chat_sessions (session_id)
+    );
 
 create table if not exists t_conversation_actions
 (
     id                 bigint auto_increment
-        primary key,
+    primary key,
     action_parameters  text         null,
     action_result      text         null,
     action_type        varchar(50)  not null,
@@ -313,12 +373,12 @@ create table if not exists t_conversation_actions
     session_id         varchar(255) not null,
     status             varchar(20)  not null,
     updated_time       datetime(6)  null
-);
+    );
 
 create table if not exists t_conversation_messages
 (
     message_id                bigint auto_increment
-        primary key,
+    primary key,
     api_key_id                bigint         null,
     completion_tokens         int            null,
     confidence_score          int            null,
@@ -343,7 +403,7 @@ create table if not exists t_conversation_messages
     tool_name                 varchar(100)   null,
     total_tokens              int            null,
     updated_time              datetime(6)    null
-);
+    );
 
 create index idx_api_key_id
     on t_conversation_messages (api_key_id);
@@ -366,10 +426,45 @@ create index idx_session_id
 create index idx_status
     on t_conversation_messages (status);
 
+create table if not exists t_dry_run_position
+(
+    id                  bigint auto_increment
+    primary key,
+    api_key_id          bigint         not null,
+    avg_px              decimal(38, 8) null,
+    close_price         decimal(38, 8) null,
+    close_reason        varchar(20)    null,
+    close_time          datetime(6)    null,
+    closed              bit            null,
+    created_time        datetime(6)    not null,
+    funding_rate        decimal(12, 8) null,
+    inst_id             varchar(50)    not null,
+    lever               decimal(8, 2)  null,
+    margin              decimal(38, 8) null,
+    order_type          varchar(20)    null,
+    pending_px          decimal(38, 8) null,
+    pending_sz          decimal(38, 8) null,
+    pos                 decimal(38, 8) not null,
+    pos_side            varchar(20)    not null,
+    realized_pnl        decimal(38, 8) null,
+    settled_funding_fee decimal(38, 8) null,
+    status              varchar(20)    not null,
+    stop_loss_price     decimal(38, 8) null,
+    take_profit_price   decimal(38, 8) null,
+    unrealized_pnl      decimal(38, 8) null,
+    updated_time        datetime(6)    not null
+    );
+
+create index idx_dry_run_position
+    on t_dry_run_position (api_key_id, inst_id, pos_side);
+
+create index idx_dry_run_position_status
+    on t_dry_run_position (api_key_id, inst_id, pos_side, status);
+
 create table if not exists t_funding_rate_data
 (
     id                  bigint auto_increment
-        primary key,
+    primary key,
     created_at          datetime(6) null,
     data_ingestion_time datetime(6) not null,
     funding_rate        varchar(20) null,
@@ -379,12 +474,12 @@ create table if not exists t_funding_rate_data
     next_funding_rate   varchar(20) null,
     updated_at          datetime(6) null,
     vendor              varchar(10) not null
-);
+    );
 
 create table if not exists t_futures_ticker_data
 (
     id                  bigint auto_increment
-        primary key,
+    primary key,
     ask_price           decimal(38, 8) null,
     ask_sz              decimal(38, 8) null,
     bid_price           decimal(38, 8) null,
@@ -407,15 +502,15 @@ create table if not exists t_futures_ticker_data
     ts_hour_str         varchar(20)    null,
     is_live_trading     bit            not null,
     constraint uk_vendor_inst_id_hour
-        unique (vendor, is_live_trading, inst_id, ts_hour_str),
+    unique (vendor, is_live_trading, inst_id, ts_hour_str),
     constraint uk_vendor_inst_id_hour_trading
-        unique (vendor, inst_id, ts_hour_str, is_live_trading)
-);
+    unique (vendor, inst_id, ts_hour_str, is_live_trading)
+    );
 
 create table if not exists t_kline_data
 (
     id           bigint auto_increment
-        primary key,
+    primary key,
     base_asset   varchar(20)          null,
     close_price  decimal(20, 8)       null,
     created_at   datetime(6)          null,
@@ -432,13 +527,13 @@ create table if not exists t_kline_data
     volume       decimal(30, 8)       null,
     confirm      tinyint(1) default 0 null,
     constraint UKfnjspxprt61oelmqfemiarn38
-        unique (provider, inst_id, timeframe, kline_time)
-);
+    unique (provider, inst_id, timeframe, kline_time)
+    );
 
 create table if not exists t_llm_audit_logs
 (
     id                 bigint auto_increment
-        primary key,
+    primary key,
     ai_response        longtext                   null,
     api_key_id         bigint                     not null,
     call_stats_id      bigint                     not null,
@@ -450,12 +545,12 @@ create table if not exists t_llm_audit_logs
     prompt_content     longtext                   not null,
     session_id         varchar(100)               not null,
     updated_time       datetime(6)                not null
-);
+    );
 
 create table if not exists t_llm_call_records
 (
     id                        bigint auto_increment
-        primary key,
+    primary key,
     api_key_id                bigint         not null,
     call_count                int            null,
     call_end_time             datetime(6)    null,
@@ -482,8 +577,9 @@ create table if not exists t_llm_call_records
     updated_at                datetime(6)    null,
     llm_call_time_ms          bigint         null,
     post_action_time_ms       bigint         null,
-    prompt_generation_time_ms bigint         null
-);
+    prompt_generation_time_ms bigint         null,
+    flow_nodes_json           longtext       null
+    );
 
 create index idx_api_key_id
     on t_llm_call_records (api_key_id);
@@ -509,7 +605,7 @@ create index idx_user_message_id
 create table if not exists t_llm_call_stats
 (
     id                 bigint auto_increment
-        primary key,
+    primary key,
     api_key_id         bigint       not null,
     call_count         int          not null,
     created_time       datetime(6)  null,
@@ -523,12 +619,12 @@ create table if not exists t_llm_call_stats
     updated_time       datetime(6)  null,
     processing_status  varchar(20)  not null,
     raw_response       text         null
-);
+    );
 
 create table if not exists t_order_executions
 (
     id           bigint auto_increment
-        primary key,
+    primary key,
     created_time datetime(6)    null,
     exec_fee     decimal(38, 8) null,
     exec_fee_ccy varchar(10)    null,
@@ -540,12 +636,12 @@ create table if not exists t_order_executions
     execution_id varchar(50)    null,
     order_id     varchar(50)    not null,
     trade_id     varchar(50)    null
-);
+    );
 
 create table if not exists t_position_snapshot
 (
     snapshot_id         bigint auto_increment
-        primary key,
+    primary key,
     api_key_id          bigint         not null,
     avail_pos           decimal(38, 8) null,
     avg_px              decimal(38, 8) null,
@@ -583,12 +679,12 @@ create table if not exists t_position_snapshot
     upl                 decimal(38, 8) null,
     upl_last_px         decimal(38, 8) null,
     utime               bigint         null
-);
+    );
 
 create table if not exists t_proxy_service_configs
 (
     proxy_id     bigint auto_increment
-        primary key,
+    primary key,
     created_time datetime(6)  not null,
     description  varchar(500) null,
     proxy_name   varchar(100) not null,
@@ -597,12 +693,12 @@ create table if not exists t_proxy_service_configs
     server_port  int          not null,
     status       varchar(20)  not null,
     updated_time datetime(6)  not null
-);
+    );
 
 create table if not exists t_data_fetch_configs
 (
     config_id            bigint auto_increment
-        primary key,
+    primary key,
     api_path             varchar(200) not null,
     auth_key_id          bigint       null,
     cex_base_url         varchar(200) not null,
@@ -617,26 +713,27 @@ create table if not exists t_data_fetch_configs
     target_duckdb_table  varchar(100) not null,
     task_id              bigint       not null,
     constraint UK_4wv5ax86xu2ttna5n7enhw73r
-        unique (task_id),
+    unique (task_id),
     constraint FK1cnlxm82ntv3ds3t6hnvtclx0
-        foreign key (proxy_id) references t_proxy_service_configs (proxy_id)
-);
+    foreign key (proxy_id) references t_proxy_service_configs (proxy_id)
+    );
 
 create table if not exists t_risk_control_config
 (
     config_id             bigint                                                                               not null
-        primary key,
+    primary key,
     current_risk_mode     enum ('AUTO', 'MANUAL')                                                              not null,
     current_trading_style enum ('C1_CONSERVATIVE', 'C2_CAUTIOUS', 'C3_MODERATE', 'C4_ACTIVE', 'C5_AGGRESSIVE') not null,
     default_risk_mode     enum ('AUTO', 'MANUAL')                                                              not null,
     default_trading_style enum ('C1_CONSERVATIVE', 'C2_CAUTIOUS', 'C3_MODERATE', 'C4_ACTIVE', 'C5_AGGRESSIVE') not null,
-    update_time           datetime(6)                                                                          null
-);
+    update_time           datetime(6)                                                                          null,
+    execution_mode        enum ('LIVE', 'DRY_RUN')                                                             null
+    );
 
 create table if not exists t_risk_control_orders
 (
     order_id                bigint auto_increment
-        primary key,
+    primary key,
     api_key_id              bigint                                   not null,
     audit_status            enum ('PENDING', 'APPROVED', 'REJECTED') not null,
     audit_time              datetime(6)                              null,
@@ -660,24 +757,24 @@ create table if not exists t_risk_control_orders
     estimated_total_capital decimal(20, 8)                           null,
     action_id               bigint                                   null,
     constraint UK_igrbqdsbunsceoqmpug3a10lx
-        unique (original_order_id)
-);
+    unique (original_order_id)
+    );
 
 create table if not exists t_risk_mode_history
 (
     history_id    bigint auto_increment
-        primary key,
+    primary key,
     change_reason varchar(500)            null,
     created_time  datetime(6)             null,
     new_mode      enum ('AUTO', 'MANUAL') not null,
     old_mode      enum ('AUTO', 'MANUAL') not null,
     operator_info varchar(200)            null
-);
+    );
 
 create table if not exists t_scheduled_tasks
 (
     task_id         bigint auto_increment
-        primary key,
+    primary key,
     created_time    datetime(6)  null,
     cron_expression varchar(50)  null,
     description     varchar(500) null,
@@ -689,13 +786,28 @@ create table if not exists t_scheduled_tasks
     timeout_seconds int          null,
     updated_time    datetime(6)  null,
     constraint UK_nar4h1vqwf6oljhtekkmj6r6p
-        unique (task_name)
-);
+    unique (task_name)
+    );
+
+create table if not exists t_skill_config
+(
+    id             bigint auto_increment
+    primary key,
+    created_at     datetime(6)  not null,
+    description    text         null,
+    execution_hint text         null,
+    is_active      bit          not null,
+    name           varchar(100) not null,
+    output_format  text         null,
+    required_tools text         null,
+    skill_prompt   text         null,
+    updated_at     datetime(6)  not null
+    );
 
 create table if not exists t_task_executions
 (
     execution_id        bigint auto_increment
-        primary key,
+    primary key,
     actual_execute_time datetime(6)  null,
     created_time        datetime(6)  null,
     error_message       text         null,
@@ -706,7 +818,7 @@ create table if not exists t_task_executions
     task_id             bigint       not null,
     trigger_time        datetime(6)  not null,
     trigger_type        varchar(20)  not null
-);
+    );
 
 create index idx_execution_status_created
     on t_task_executions (execution_status, created_time);
@@ -717,7 +829,7 @@ create index idx_task_execution_lookup
 create table if not exists t_trade_actions
 (
     id                  bigint auto_increment
-        primary key,
+    primary key,
     action_type         varchar(50)    null,
     amount              decimal(38, 2) null,
     api_key_id          bigint         not null,
@@ -753,12 +865,12 @@ create table if not exists t_trade_actions
     risk_control_status varchar(20)    null,
     check (`open_close` between 0 and 1),
     check (`order_type` between 0 and 1)
-);
+    );
 
 create table if not exists t_trade_balance_snapshots
 (
     snapshot_id               bigint auto_increment
-        primary key,
+    primary key,
     api_key_id                bigint         not null,
     available_equity_usdt     decimal(38, 8) not null,
     cex_name                  varchar(50)    not null,
@@ -773,12 +885,12 @@ create table if not exists t_trade_balance_snapshots
     used_margin_usdt          decimal(38, 8) not null,
     record_id                 bigint         null,
     display_total_equity_usdt decimal(38, 8) null
-);
+    );
 
 create table if not exists t_trading_orders
 (
     id                  bigint auto_increment
-        primary key,
+    primary key,
     amt                 decimal(38, 8) not null,
     api_key_id          bigint         null,
     bot_id              bigint         null,
@@ -807,17 +919,19 @@ create table if not exists t_trading_orders
     updated_time        datetime(6)    null,
     action_id           bigint         null,
     record_id           bigint         null,
+    is_dry_run          bit            not null,
     constraint UK_7qsvpcgd50xfpm2lsfgn890hp
-        unique (order_uuid)
-);
+    unique (order_uuid)
+    );
 
 create table if not exists t_trading_style_history
 (
     history_id    bigint auto_increment
-        primary key,
+    primary key,
     change_reason varchar(500)                                                                         null,
     created_time  datetime(6)                                                                          null,
     new_style     enum ('C1_CONSERVATIVE', 'C2_CAUTIOUS', 'C3_MODERATE', 'C4_ACTIVE', 'C5_AGGRESSIVE') not null,
     old_style     enum ('C1_CONSERVATIVE', 'C2_CAUTIOUS', 'C3_MODERATE', 'C4_ACTIVE', 'C5_AGGRESSIVE') not null,
     operator_info varchar(200)                                                                         null
-);
+    );
+

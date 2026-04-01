@@ -5,6 +5,7 @@ import com.crypto.trade.model.DataFetchConfigModel;
 import com.crypto.trade.model.request.CreateDataFetchConfigReq;
 import com.crypto.trade.model.request.UpdateDataFetchConfigReq;
 import com.crypto.trade.repository.DataFetchConfigRepository;
+import com.crypto.trade.repository.ProxyServiceConfigRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,8 @@ public class ApiConfigService {
 
     @Autowired
     DataFetchConfigRepository dataFetchConfigRepository;
+    @Autowired
+    ProxyServiceConfigRepository proxyServiceConfigRepository;
 
     private volatile long lastCacheUpdate = 0;
 
@@ -120,6 +123,12 @@ public class ApiConfigService {
                     existingConfig.setDataProcessorClass(updatedConfig.getDataProcessorClass());
                     existingConfig.setTargetDuckdbTable(updatedConfig.getTargetDuckdbTable());
                     existingConfig.setResponseMapping(updatedConfig.getResponseMapping());
+                    existingConfig.setRequiresProxy(updatedConfig.getRequiresProxy());
+                    if (Boolean.TRUE.equals(updatedConfig.getRequiresProxy())) {
+                        existingConfig.setProxyId(updatedConfig.getProxyId());
+                    } else {
+                        existingConfig.setProxyId(null);
+                    }
 
                     DataFetchConfig savedConfig = dataFetchConfigRepository.save(existingConfig);
 
@@ -194,6 +203,22 @@ public class ApiConfigService {
         // 如果需要鉴权，必须提供authKeyId
         if (Boolean.TRUE.equals(config.getRequiresAuth()) && config.getAuthKeyId() == null) {
             throw new IllegalArgumentException("Auth Key ID is required when authentication is enabled");
+        }
+
+        // 代理配置校验
+        if (Boolean.TRUE.equals(config.getRequiresProxy())) {
+            if (config.getProxyId() == null) {
+                throw new IllegalArgumentException("Proxy ID is required when proxy is enabled");
+            }
+            var proxyOpt = proxyServiceConfigRepository.findById(config.getProxyId());
+            if (proxyOpt.isEmpty()) {
+                throw new IllegalArgumentException("Proxy config not found with id: " + config.getProxyId());
+            }
+            if (!"active".equals(proxyOpt.get().getStatus())) {
+                throw new IllegalArgumentException("Proxy config is not active: " + config.getProxyId());
+            }
+        } else {
+            config.setProxyId(null);
         }
 
         // 验证请求参数JSON格式

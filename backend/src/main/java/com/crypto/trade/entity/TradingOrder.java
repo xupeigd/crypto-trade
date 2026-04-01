@@ -168,6 +168,12 @@ public class TradingOrder {
     @Column(name = "cex_order_id", length = 50)
     private String cexOrderId;
 
+    /**
+     * 是否为dry run订单
+     */
+    @Column(name = "is_dry_run", nullable = false)
+    private Boolean isDryRun = false;
+
     // ============================================
     // 业务扩展字段
     // ============================================

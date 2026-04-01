@@ -25,7 +25,7 @@ public class PositionQueryReq {
     /**
      * 交易所供应商
      */
-    @Pattern(regexp = "^(OKX|BINANCE|HUOBI)$", message = "交易所必须是OKX、BINANCE或HUOBI")
+    @Pattern(regexp = "^(?i)(OKX|BINANCE|HUOBI|ALL)$", message = "交易所必须是OKX、BINANCE、HUOBI或ALL")
     String vendor;
 
     /**
@@ -168,7 +168,24 @@ public class PositionQueryReq {
      * @return 供应商，默认为OKX
      */
     public String getVendorOrDefault() {
-        return null != vendor ? vendor : "OKX";
+        if (vendor == null) {
+            return "OKX";
+        }
+        // 统一转为大写处理
+        String upperVendor = vendor.toUpperCase();
+        if ("ALL".equals(upperVendor)) {
+            return null;  // ALL时不指定vendor，查询所有
+        }
+        return upperVendor;
+    }
+
+    /**
+     * 判断是否为ALL选项（查询所有交易所）
+     *
+     * @return true如果vendor为"ALL"
+     */
+    public boolean isAll() {
+        return "ALL".equalsIgnoreCase(vendor);
     }
 
     /**

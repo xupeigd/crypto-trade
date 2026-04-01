@@ -765,7 +765,7 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
 
                         if (response.data.success) {
                             successCount++;
-                            console.log(`成功撤销全仓策略: ${strategy.algoId}`);
+                            // console.log(`成功撤销全仓策略: ${strategy.algoId}`);
                         } else {
                             failCount++;
                             console.error(`撤销全仓策略失败: ${strategy.algoId} - ${response.data.message}`);
@@ -1262,13 +1262,14 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
     // 市价平仓
     // 打开仓位K线图弹窗
     const handleOpenPositionChart = (position: PositionModel) => {
-        console.log('[OrderList] 打开K线图弹窗 - 合约:', position.instId);
+        // console.log('[OrderList] 打开K线图弹窗 - 合约:', position.instId);
         // 转换为 ActiveChartItem 格式
+        // 兼容 cTime 和 ctime 两种字段名（API 返回可能是小写）
         const chartItem: ActiveChartItem = {
             type: 'position',
             instId: position.instId || '',
             posSide: position.posSide || 'long',
-            ctime: position.cTime ?? Date.now(),
+            ctime: position.cTime || (position as any).ctime || Date.now(),
             referencePrice: position.avgPx,
             detail: position
         };
@@ -1278,7 +1279,7 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
 
     // 关闭K线图弹窗
     const handleCloseChartModal = () => {
-        console.log('[OrderList] 关闭K线图弹窗');
+        // console.log('[OrderList] 关闭K线图弹窗');
         setChartModalVisible(false);
         setSelectedPositionForChart(null);
     };
@@ -1301,12 +1302,12 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
         }
 
         // 调试信息
-        console.log('平仓确认弹窗 - 盈亏信息:', {
-            upl: position.upl,
-            uplValue: Number(position.upl || 0),
-            isProfit: Number(position.upl || 0) >= 0,
-            buttonColor: Number(position.upl || 0) >= 0 ? '#52c41a' : '#ff4d4f'
-        });
+        // console.log('平仓确认弹窗 - 盈亏信息:', {
+        //     upl: position.upl,
+        //     uplValue: Number(position.upl || 0),
+        //     isProfit: Number(position.upl || 0) >= 0,
+        //     buttonColor: Number(position.upl || 0) >= 0 ? '#52c41a' : '#ff4d4f'
+        // });
 
         Modal.confirm({
             title: (
@@ -1593,7 +1594,7 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
         const calculateHoldingTime = (createTime: number): { time: string, totalMinutes: number } => {
             // 添加调试日志
             if (!createTime || createTime <= 0) {
-                console.log('仓位时间异常 - 合约:', position.instId, 'cTime:', createTime, '当前时间:', currentTime);
+                // console.log('仓位时间异常 - 合约:', position.instId, 'cTime:', createTime, '当前时间:', currentTime);
                 return {time: '0s', totalMinutes: 0};
             }
 
@@ -1603,7 +1604,7 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
             const diff = now - created;
 
             if (diff < 0) {
-                console.log('时间差为负 - 合约:', position.instId, '创建时间:', created, '当前时间:', now);
+                // console.log('时间差为负 - 合约:', position.instId, '创建时间:', created, '当前时间:', now);
                 return {time: '0s', totalMinutes: 0};
             }
 
@@ -2131,7 +2132,7 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
     const renderPendingItem = useCallback((order: PendingOrder) => {
         // 添加null检查,防止order为null时崩溃
         if (!order) {
-            console.warn('检测到空订单对象,跳过渲染');
+            // console.warn('检测到空订单对象,跳过渲染');
             return null;
         }
 
@@ -2293,11 +2294,11 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
 
                             // 调试日志：帮助诊断按钮显示问题
                             if (!isActive) {
-                                console.log('订单状态不满足取消按钮显示条件:', {
-                                    orderId: order.ordId,
-                                    state: order.state,
-                                    stateType: typeof order.state
-                                });
+// // console.log('订单状态不满足取消按钮显示条件:', {
+//     orderId: order.ordId,
+//     state: order.state,
+//     stateType: typeof order.state
+// });
                             }
 
                             return isActive;
@@ -2402,13 +2403,13 @@ const OrderList: React.FC<OrderListProps> = ({apiKeyId, onOrderUpdate}) => {
         const finalApiKeyId = orderApiKeyId || apiKeyId;
 
         // 添加调试日志
-        console.log('handleCancelOrder 调试信息:', {
-            orderId,
-            orderApiKeyId,
-            componentApiKeyId: apiKeyId,
-            finalApiKeyId,
-            instId
-        });
+//         // console.log('handleCancelOrder 调试信息:', {
+//             orderId,
+//             orderApiKeyId,
+//             componentApiKeyId: apiKeyId,
+//             finalApiKeyId,
+//             instId
+//         });
 
         // 参数验证
         if (!finalApiKeyId) {

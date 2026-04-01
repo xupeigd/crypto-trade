@@ -29,6 +29,11 @@ public class TotalStopLossAmendReq {
     String instId;
 
     /**
+     * 持仓方向: long / short
+     */
+    String posSide;
+
+    /**
      * 算法订单ID
      */
     String algoId;

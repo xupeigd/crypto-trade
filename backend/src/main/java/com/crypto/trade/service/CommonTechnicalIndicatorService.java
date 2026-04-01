@@ -832,4 +832,130 @@ public class CommonTechnicalIndicatorService {
 
         return result;
     }
+
+    /**
+     * 计算 Pivot Points (枢轴点) - 入口方法
+     * 根据指定的计算方法调用对应的实现
+     *
+     * @param high   周期内最高价
+     * @param low    周期内最低价
+     * @param close  周期内收盘价
+     * @param method 计算方法：classic (经典) 或 fibonacci (斐波那契)
+     * @return Pivot Points 结果
+     */
+    public Map<String, BigDecimal> calculatePivotPoints(BigDecimal high, BigDecimal low, BigDecimal close, String method) {
+        if (method == null || method.equalsIgnoreCase("classic")) {
+            return calculateClassicPivotPoints(high, low, close);
+        } else if (method.equalsIgnoreCase("fibonacci")) {
+            return calculateFibonacciPivotPoints(high, low, close);
+        } else {
+            throw new IllegalArgumentException("不支持的 Pivot Points 计算方法: " + method);
+        }
+    }
+
+    /**
+     * 计算 Classic Pivot Points (经典枢轴点)
+     * 使用经典 Pivot Points 公式：
+     * PP = (High + Low + Close) / 3
+     * S1 = 2 * PP - High    (第一支撑)
+     * R1 = 2 * PP - Low     (第一阻力)
+     * S2 = PP - (High - Low)    (第二支撑)
+     * R2 = PP + (High - Low)    (第二阻力)
+     *
+     * @param high  周期内最高价
+     * @param low   周期内最低价
+     * @param close 周期内收盘价
+     * @return Pivot Points 结果
+     */
+    public Map<String, BigDecimal> calculateClassicPivotPoints(BigDecimal high, BigDecimal low, BigDecimal close) {
+        if (high == null || low == null || close == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, BigDecimal> result = new LinkedHashMap<>();
+
+        // 计算枢轴点 PP = (High + Low + Close) / 3
+        BigDecimal pp = high.add(low).add(close).divide(BigDecimal.valueOf(3), SCALE, ROUNDING_MODE);
+        result.put("pivot", pp);
+
+        // 计算第一支撑 S1 = 2 * PP - High
+        BigDecimal s1 = pp.multiply(BigDecimal.valueOf(2)).subtract(high);
+        result.put("s1", s1);
+
+        // 计算第一阻力 R1 = 2 * PP - Low
+        BigDecimal r1 = pp.multiply(BigDecimal.valueOf(2)).subtract(low);
+        result.put("r1", r1);
+
+        // 计算第二支撑 S2 = PP - (High - Low)
+        BigDecimal s2 = pp.subtract(high.subtract(low));
+        result.put("s2", s2);
+
+        // 计算第二阻力 R2 = PP + (High - Low)
+        BigDecimal r2 = pp.add(high.subtract(low));
+        result.put("r2", r2);
+
+        // 计算第三支撑 S3 = Low - 2 * (High - PP)
+        BigDecimal s3 = low.subtract(high.subtract(pp).multiply(BigDecimal.valueOf(2)));
+        result.put("s3", s3);
+
+        // 计算第三阻力 R3 = High + 2 * (PP - Low)
+        BigDecimal r3 = high.add(pp.subtract(low).multiply(BigDecimal.valueOf(2)));
+        result.put("r3", r3);
+
+        return result;
+    }
+
+    /**
+     * 计算 Fibonacci Pivot Points (斐波那契枢轴点)
+     * 使用斐波那契系数计算支撑位和阻力位：
+     * PP = (High + Low + Close) / 3
+     * R3 = PP + (High - Low) * 1.618
+     * R2 = PP + (High - Low) * 0.618
+     * R1 = PP + (High - Low) * 0.382
+     * S1 = PP - (High - Low) * 0.382
+     * S2 = PP - (High - Low) * 0.618
+     * S3 = PP - (High - Low) * 1.618
+     *
+     * @param high  周期内最高价
+     * @param low   周期内最低价
+     * @param close 周期内收盘价
+     * @return Pivot Points 结果
+     */
+    public Map<String, BigDecimal> calculateFibonacciPivotPoints(BigDecimal high, BigDecimal low, BigDecimal close) {
+        if (high == null || low == null || close == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, BigDecimal> result = new LinkedHashMap<>();
+
+        // 计算枢轴点 PP = (High + Low + Close) / 3
+        BigDecimal pp = high.add(low).add(close).divide(BigDecimal.valueOf(3), SCALE, ROUNDING_MODE);
+        result.put("pivot", pp);
+
+        // 计算价格范围
+        BigDecimal range = high.subtract(low);
+
+        // 斐波那契系数
+        BigDecimal fib0382 = new BigDecimal("0.382");
+        BigDecimal fib0618 = new BigDecimal("0.618");
+        BigDecimal fib1618 = new BigDecimal("1.618");
+
+        // 计算支撑位（基于 PP 减去斐波那契比例的价格范围）
+        BigDecimal s1 = pp.subtract(range.multiply(fib0382));
+        BigDecimal s2 = pp.subtract(range.multiply(fib0618));
+        BigDecimal s3 = pp.subtract(range.multiply(fib1618));
+        result.put("s1", s1);
+        result.put("s2", s2);
+        result.put("s3", s3);
+
+        // 计算阻力位（基于 PP 加上斐波那契比例的价格范围）
+        BigDecimal r1 = pp.add(range.multiply(fib0382));
+        BigDecimal r2 = pp.add(range.multiply(fib0618));
+        BigDecimal r3 = pp.add(range.multiply(fib1618));
+        result.put("r1", r1);
+        result.put("r2", r2);
+        result.put("r3", r3);
+
+        return result;
+    }
 }

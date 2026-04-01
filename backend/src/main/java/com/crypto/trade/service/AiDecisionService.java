@@ -2,6 +2,7 @@ package com.crypto.trade.service;
 
 import com.crypto.trade.config.AiTradingRiskControlConfig;
 import com.crypto.trade.dto.AiResponseParseResult;
+import com.crypto.trade.dto.AttentionInfo;
 import com.crypto.trade.dto.ModelCallResult;
 import com.crypto.trade.dto.ModelCallTiming;
 import com.crypto.trade.dto.cex.model.CexFundingRate;
@@ -10,10 +11,7 @@ import com.crypto.trade.dto.cex.model.CexPosition;
 import com.crypto.trade.dto.response.BotPromptGenerateResponse;
 import com.crypto.trade.dto.response.ReplayDecisionResponse;
 import com.crypto.trade.dto.response.ReplaySingleActionResponse;
-import com.crypto.trade.entity.ApiKey;
-import com.crypto.trade.entity.ConversationAction;
-import com.crypto.trade.entity.LlmCallRecord;
-import com.crypto.trade.entity.TradeAction;
+import com.crypto.trade.entity.*;
 import com.crypto.trade.model.PositionModel;
 import com.crypto.trade.model.PositionRiskModel;
 import com.crypto.trade.model.PositionSummaryModel;
@@ -105,6 +103,11 @@ public class AiDecisionService {
      */
     @Autowired
     AlertService alertService;
+    /**
+     * ATTENTION队列服务
+     */
+    @Autowired
+    AttentionQueueService attentionQueueService;
 
     /**
      * 获取资金费率
@@ -287,12 +290,12 @@ public class AiDecisionService {
      */
     private void configureProcessorParameters() {
         // 配置统计信息处理器
-        promptBuilder.setProcessorParameters("StatsInfoProcessor",
-                Map.of("enableStatsInfo", true, "statsType", "HORIZONTAL"));
+//        promptBuilder.setProcessorParameters("StatsInfoProcessor",
+//                Map.of("enableStatsInfo", true, "statsType", "HORIZONTAL"));
 
         // 配置持仓价格数据处理器
-        promptBuilder.setProcessorParameters("PositionPriceProcessor",
-                Map.of("enablePositionPrice", true, "timeframes", "4H,1H,5m", "dataCounts", "{\"5m\": 24, \"1H\": 24, \"4H\": 30}"));
+//        promptBuilder.setProcessorParameters("PositionPriceProcessor",
+//                Map.of("enablePositionPrice", true, "timeframes", "4H,1H,5m", "dataCounts", "{\"5m\": 24, \"1H\": 24, \"4H\": 30}"));
 
         // 配置账户信息处理器
         promptBuilder.setProcessorParameters("AccountInfoProcessor",
@@ -895,8 +898,11 @@ public class AiDecisionService {
     /**
      * 仅生成prompt,不调用AI模型
      * 用于前端预览和编辑功能
+     *
+     * @param apiKeyId   API Key ID
+     * @param attentions 预传递的ATTENTION信息列表（可选，用于Attention触发时避免从数据库查询不到数据）
      */
-    public BotPromptGenerateResponse generatePromptOnly(Long apiKeyId) {
+    public BotPromptGenerateResponse generatePromptOnly(Long apiKeyId, List<AttentionInfo> attentions) {
         try {
             log.debug("开始生成prompt - apiKeyId: {}", apiKeyId);
 
@@ -917,6 +923,37 @@ public class AiDecisionService {
 //            if (positions != null && !positions.isEmpty()) {
 //                context.setCustomData("positions", positions);
 //            }
+
+            // 【ATTENTION】处理ATTENTION信息
+            // 优先使用预传递的attentions（从request中获取），否则从数据库查询
+            List<AttentionInfo> attentionInfoList = attentions;
+            if (attentionInfoList == null || attentionInfoList.isEmpty()) {
+                // 从数据库查询（原有逻辑）
+                List<AttentionQueue> pendingAttentions = attentionQueueService.getPendingAttentionsByApiKeyId(apiKeyId);
+                if (pendingAttentions != null && !pendingAttentions.isEmpty()) {
+                    log.info("【ATTENTION】从数据库检测到待处理的ATTENTION - apiKeyId: {}, count: {}", apiKeyId, pendingAttentions.size());
+                    attentionInfoList = pendingAttentions.stream()
+                            .map(a -> AttentionInfo.builder()
+                                    .queueId(a.getId())
+                                    .instId(a.getInstId())
+                                    .priority(a.getPriority())
+                                    .timeframe(a.getTimeframe())
+                                    .limit(a.getQueryLimit())
+                                    .expectedTriggerTime(a.getExpectedTriggerTime())
+                                    .build())
+                            .collect(Collectors.toList());
+                }
+            } else {
+                log.info("【ATTENTION】使用预传递的ATTENTION信息 - apiKeyId: {}, count: {}", apiKeyId, attentionInfoList.size());
+            }
+
+            // 设置到context中
+            if (attentionInfoList != null && !attentionInfoList.isEmpty()) {
+                log.info("【ATTENTION】设置到context前 - attentionInfoList: {}", attentionInfoList);
+                context.setCustomData("attentions", attentionInfoList);
+                List<AttentionInfo> afterSet = context.getCustomData("attentions");
+                log.info("【ATTENTION】设置到context后 - attentions: {}", afterSet);
+            }
 
             // 4. 配置处理器参数
             configureProcessorParameters();
@@ -959,6 +996,14 @@ public class AiDecisionService {
                     .errorMessage(e.getMessage())
                     .build();
         }
+    }
+
+    /**
+     * 仅生成prompt,不调用AI模型（重载方法，保持向后兼容）
+     * 用于前端预览和编辑功能
+     */
+    public BotPromptGenerateResponse generatePromptOnly(Long apiKeyId) {
+        return generatePromptOnly(apiKeyId, null);
     }
 
     /**

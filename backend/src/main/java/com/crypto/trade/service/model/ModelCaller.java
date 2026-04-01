@@ -36,6 +36,18 @@ public interface ModelCaller {
     String callWithMessages(List<UnifiedModelFactory.Message> messages, AIModelConfig config) throws UnifiedModelFactory.ModelCallException;
 
     /**
+     * 使用messages数组和tools调用模型（支持Function Calling）
+     *
+     * @param messages 消息数组
+     * @param config   模型配置
+     * @param tools    工具定义列表
+     * @return 模型响应结果
+     * @throws UnifiedModelFactory.ModelCallException 调用异常
+     */
+    String callWithMessagesAndTools(List<UnifiedModelFactory.Message> messages, AIModelConfig config,
+            List<UnifiedModelFactory.Tool> tools) throws UnifiedModelFactory.ModelCallException;
+
+    /**
      * 异步调用模型
      *
      * @param prompt 用户提示词

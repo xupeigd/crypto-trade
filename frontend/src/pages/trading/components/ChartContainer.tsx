@@ -9,8 +9,6 @@ import {
     RightOutlined,
     ReloadOutlined
 } from '@ant-design/icons';
-import {klineBarsFromCandles, KLineChart} from '../../../components/charts/KLineChart';
-import {CandlestickData} from './CandlestickChart';
 import {
     CompleteChartData,
     MarkPriceCandle,
@@ -21,6 +19,7 @@ import {IndicatorConfig, TechnicalIndicator, useChartState} from '../../../hooks
 import {useKlineTimer} from '../../../hooks/useKlineTimer';
 import TechnicalIndicatorsConfigPanel from './TechnicalIndicatorsConfigPanel';
 import QuickTradingPanel from './QuickTradingPanel';
+import LightweightCandlestickChart, {KLineBar, TechnicalIndicatorData as ChartIndicatorData} from '../../../components/charts/LightweightCandlestickChart';
 import './ChartContainer.css';
 import './ChartModalEnhanced.css';
 
@@ -69,16 +68,16 @@ const FullscreenChartModal: React.FC<{
     visible: boolean;
     onClose: () => void;
     instId: string;
-    data: CandlestickData[];
+    data: KLineBar[];
     loading: boolean;
     _error: string | null;
     timeFrame: string;
     klineLimit: number;
-    reverseOrder: boolean;
-    onReverseOrderChange: (reverseOrder: boolean) => void;
     selectedIndicators: TechnicalIndicator[];
     indicatorConfigs: Record<TechnicalIndicator, IndicatorConfig>;
     indicatorData: Record<string, TechnicalIndicatorData>;
+    convertedIndicators: Record<string, ChartIndicatorData[]>;
+    visibleIndicators: Record<string, boolean>;
     markPrice?: number | null;
     currentMarkPrice?: number | null; // 从getCompleteChartData获取的当前标记价格
     fourHourAvgChange?: number | null; // 4小时平均涨跌幅
@@ -104,11 +103,11 @@ const FullscreenChartModal: React.FC<{
           loading,
           timeFrame,
           klineLimit,
-          reverseOrder,
-          onReverseOrderChange,
           selectedIndicators,
           indicatorConfigs,
           indicatorData,
+          convertedIndicators,
+          visibleIndicators,
           markPrice,
           currentMarkPrice,
           fourHourAvgChange,
@@ -131,7 +130,6 @@ const FullscreenChartModal: React.FC<{
     const controlsRef = useRef<HTMLDivElement>(null);
     const [controlsHeight, setControlsHeight] = useState(0);
     const [chartDimensions, setChartDimensions] = useState({width: 0, height: 0});
-    const bars = useMemo(() => klineBarsFromCandles(data), [data]);
 
     // 计算模态框尺寸和布局 - 优化响应式断点，确保小屏幕下布局稳定
     const getModalDimensions = useCallback(() => {
@@ -285,11 +283,11 @@ const FullscreenChartModal: React.FC<{
             calculateChartDimensions();
             // 触发布局重新渲染
             const layoutType = getLayoutType();
-            console.log(`[FullscreenChartModal] 窗口尺寸变化，布局类型: ${layoutType}`, {
-                width: window.innerWidth,
-                height: window.innerHeight,
-                modalDimensions: getModalDimensions()
-            });
+            // console.log(`[FullscreenChartModal] 窗口尺寸变化，布局类型: ${layoutType}`, {
+            //     width: window.innerWidth,
+            //     height: window.innerHeight,
+            //     modalDimensions: getModalDimensions()
+            // });
         };
 
         window.addEventListener('resize', handleResize);
@@ -401,28 +399,6 @@ const FullscreenChartModal: React.FC<{
                                     />
                                 </div>
 
-                                <div className="sort-controls-enhanced">
-                                    <span className="sort-label-enhanced">排序:</span>
-                                    <Tooltip title="新在左">
-                                        <Button
-                                            size="small"
-                                            type={!reverseOrder ? 'text' : 'default'}
-                                            disabled={!reverseOrder}
-                                            icon={<LeftOutlined/>}
-                                            onClick={() => onReverseOrderChange(false)}
-                                        />
-                                    </Tooltip>
-                                    <Tooltip title="新在右">
-                                        <Button
-                                            size="small"
-                                            type={reverseOrder ? 'text' : 'default'}
-                                            disabled={reverseOrder}
-                                            icon={<RightOutlined/>}
-                                            onClick={() => onReverseOrderChange(true)}
-                                        />
-                                    </Tooltip>
-                                </div>
-
                                 {/* 状态控制行 */}
                                 <div className="status-row" style={{
                                     marginTop: '8px',
@@ -494,15 +470,15 @@ const FullscreenChartModal: React.FC<{
                         <div className="chart-area">
                             {chartDimensions.height > 0 && (
                                 <div style={{width: '100%', height: chartDimensions.height}}>
-                                    <KLineChart
-                                        symbol={instId}
-                                        period={timeFrame as any}
-                                        data={bars}
+                                    <LightweightCandlestickChart
+                                        data={data}
+                                        height={chartDimensions.height}
                                         loading={loading}
                                         markPrice={currentMarkPrice || markPrice || undefined}
-                                        reverseOrder={reverseOrder}
-                                        indicators={indicatorData}
-                                        isDebugMode={true}
+                                        timeFrame={timeFrame}
+                                        indicators={convertedIndicators}
+                                        visibleIndicators={visibleIndicators}
+                                        maxVisibleBars={klineLimit}
                                     />
                                 </div>
                             )}
@@ -554,28 +530,6 @@ const FullscreenChartModal: React.FC<{
                                     }))}
                                     onChange={(value) => onKlineLimitChange(value as number)}
                                 />
-                            </div>
-
-                            <div className="sort-controls-enhanced" style={{marginTop: '6px'}}>
-                                <span className="sort-label-enhanced">排序:</span>
-                                <Tooltip title="新在左">
-                                    <Button
-                                        size="small"
-                                        type={!reverseOrder ? 'text' : 'default'}
-                                        disabled={!reverseOrder}
-                                        icon={<LeftOutlined/>}
-                                        onClick={() => onReverseOrderChange(false)}
-                                    />
-                                </Tooltip>
-                                <Tooltip title="新在右">
-                                    <Button
-                                        size="small"
-                                        type={reverseOrder ? 'text' : 'default'}
-                                        disabled={reverseOrder}
-                                        icon={<RightOutlined/>}
-                                        onClick={() => onReverseOrderChange(true)}
-                                    />
-                                </Tooltip>
                             </div>
 
                             {/* 状态控制行 */}
@@ -642,17 +596,15 @@ const FullscreenChartModal: React.FC<{
                         <div className="chart-area" style={{marginBottom: '12px'}}>
                             {chartDimensions.height > 0 && (
                                 <div style={{width: '100%', height: chartDimensions.height}}>
-                                    <KLineChart
-                                        symbol={instId}
-                                        period={timeFrame as any}
-                                        data={bars}
+                                    <LightweightCandlestickChart
+                                        data={data}
+                                        height={chartDimensions.height}
                                         loading={loading}
                                         markPrice={currentMarkPrice || markPrice || undefined}
-                                        reverseOrder={reverseOrder}
-                                        indicators={indicatorData}
-                                        isDebugMode={true}
-                                        indicatorConfigs={indicatorConfigs}
-                                        onUpdateIndicatorConfig={onUpdateIndicatorConfig}
+                                        timeFrame={timeFrame}
+                                        indicators={convertedIndicators}
+                                        visibleIndicators={visibleIndicators}
+                                        maxVisibleBars={klineLimit}
                                     />
                                 </div>
                             )}
@@ -681,13 +633,11 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                                                            markPrice,
                                                            fourHourAvgChange
                                                        }) => {
-    const [data, setData] = useState<CandlestickData[]>([]);
-    const bars = useMemo(() => klineBarsFromCandles(data), [data]);
+    const [data, setData] = useState<KLineBar[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [containerWidth, setContainerWidth] = useState(800);
     const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
-    const [reverseOrder, setReverseOrder] = useState(false);
 
     // 使用统一的状态管理Hook
     const {
@@ -707,6 +657,114 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
     // 当前标记价格（从getCompleteChartData获取）
     const [currentMarkPrice, setCurrentMarkPrice] = useState<number | null>(null);
+
+    /**
+     * 将后端返回的指标数据转换为 LightweightCandlestickChart 需要的格式
+     * 后端格式: { EMA: { success: true, data: { metricName: 'EMA', values: [{timestamp, multiPeriodValues: {ema_5: 123}}] } } }
+     * 新组件格式: { EMA_ema_12: [{ time, value }, ...], EMA_ema_26: [...] }
+     */
+    const convertIndicatorData = useCallback((indicators: Record<string, TechnicalIndicatorData>): Record<string, ChartIndicatorData[]> => {
+        const result: Record<string, ChartIndicatorData[]> = {};
+
+        Object.entries(indicators).forEach(([indicatorName, indicatorResponse]) => {
+            // 跳过无效数据
+            if (!indicatorResponse || !indicatorResponse.data) return;
+
+            const { metricName, values } = indicatorResponse.data as any;
+
+            // 处理多周期指标数据 - 后端格式: values: [{timestamp, multiPeriodValues: {ema_5: 123, ema_20: 456}}]
+            if (values && Array.isArray(values) && values.length > 0) {
+                // 检查第一个元素是否有 multiPeriodValues
+                const firstValue = values[0];
+                if (firstValue.multiPeriodValues && typeof firstValue.multiPeriodValues === 'object') {
+                    // 收集所有周期 key
+                    const periodKeys = new Set<string>();
+                    values.forEach((v: any) => {
+                        if (v.multiPeriodValues) {
+                            Object.keys(v.multiPeriodValues).forEach(key => periodKeys.add(key));
+                        }
+                    });
+
+                    // 为每个周期创建数据数组
+                    periodKeys.forEach(periodKey => {
+                        const key = `${metricName}_${periodKey}`;
+                        const periodData: ChartIndicatorData[] = [];
+
+                        values.forEach((v: any) => {
+                            const timestamp = v.timestamp || v.time;
+                            const periodValue = v.multiPeriodValues?.[periodKey];
+
+                            if (periodValue !== undefined && periodValue !== null) {
+                                // 处理简单数值
+                                if (typeof periodValue === 'number') {
+                                    periodData.push({ time: timestamp, value: periodValue });
+                                }
+                                // 处理复杂对象 (BOLL, MACD 等)
+                                else if (typeof periodValue === 'object') {
+                                    periodData.push({
+                                        time: timestamp,
+                                        value: periodValue.value,
+                                        upper: periodValue.upper,
+                                        middle: periodValue.middle,
+                                        lower: periodValue.lower,
+                                        diff: periodValue.diff || periodValue.dif,
+                                        signal: periodValue.signal || periodValue.dea,
+                                        histogram: periodValue.histogram || periodValue.macd,
+                                        k: periodValue.k,
+                                        d: periodValue.d,
+                                        j: periodValue.j,
+                                    });
+                                }
+                            }
+                        });
+
+                        if (periodData.length > 0) {
+                            // 按时间升序排序（lightweight-charts 要求）
+                            periodData.sort((a, b) => a.time - b.time);
+                            result[key] = periodData;
+                        }
+                    });
+                } else {
+                    // 旧格式: values 直接包含数值
+                    const config = indicatorConfigs[indicatorName as TechnicalIndicator];
+                    const periods = config?.periods || [config?.period].filter(Boolean);
+                    periods.forEach((period: number) => {
+                        const key = `${metricName}_${metricName.toLowerCase()}_${period}`;
+                        const mappedData = values.map((v: any) => ({
+                            time: v.timestamp || v.time,
+                            value: v.value,
+                            upper: v.upper,
+                            middle: v.middle,
+                            lower: v.lower,
+                        }));
+                        // 按时间升序排序
+                        mappedData.sort((a, b) => a.time - b.time);
+                        result[key] = mappedData;
+                    });
+                }
+            }
+        });
+
+        return result;
+    }, [indicatorConfigs]);
+
+    // 转换后的指标数据
+    const convertedIndicators = useMemo(() => convertIndicatorData(indicatorData), [indicatorData, convertIndicatorData]);
+
+    // 可见指标状态（用于传递给 LightweightCandlestickChart）
+    const visibleIndicators = useMemo(() => {
+        const result: Record<string, boolean> = {};
+        selectedIndicators.forEach(indicator => {
+            const config = indicatorConfigs[indicator];
+            // 优先使用visiblePeriods（用户勾选的周期），否则使用periods
+            const periodsToShow = config?.visiblePeriods || config?.periods || [];
+            periodsToShow.forEach(period => {
+                // 生成与 LightweightCandlestickChart 中匹配的 key
+                result[`${indicator}_${period}`] = true;
+            });
+        });
+        return result;
+    }, [selectedIndicators, indicatorConfigs]);
 
     // 格式化倒计时显示
     const formatCountdown = useCallback((ms: number): string => {
@@ -737,11 +795,11 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
     // 创建稳定的定时器回调函数
     const handleTimerRefresh = useCallback(async () => {
-        console.log('🔄 [ChartContainer] 定时器触发数据刷新');
+        // console.log('🔄 [ChartContainer] 定时器触发数据刷新');
         if (fetchCompleteChartDataRef.current) {
             await fetchCompleteChartDataRef.current();
         } else {
-            console.warn('⚠️ [ChartContainer] fetchCompleteChartDataRef.current 为空，无法执行刷新');
+            // console.warn('⚠️ [ChartContainer] fetchCompleteChartDataRef.current 为空，无法执行刷新');
         }
     }, []);
 
@@ -765,14 +823,14 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
     // 添加时间帧变化的调试日志
     useEffect(() => {
-        console.log(`🔄 [ChartContainer] 时间帧变化: ${timeFrame}`);
+        // console.log(`🔄 [ChartContainer] 时间帧变化: ${timeFrame}`);
     }, [timeFrame]);
 
 
     // 统一获取完整图表数据（包含K线数据和技术指标）
     const fetchCompleteChartData = useCallback(async () => {
         if (!instId) {
-            console.log('fetchCompleteChartData: instId is empty');
+            // console.log('fetchCompleteChartData: instId is empty');
             return;
         }
 
@@ -783,14 +841,14 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
             // 使用独立的K线采样控制
             const currentLimit = klineLimit;
 
-            console.log('🔄 [fetchCompleteChartData] 开始获取完整图表数据:', {
-                instId,
-                timeFrame,
-                klineLimit,
-                currentLimit,
-                selectedIndicators,
-                note: `klineLimit状态值: ${klineLimit}, 将用于API的limit参数: ${currentLimit}`
-            });
+            // console.log('🔄 [fetchCompleteChartData] 开始获取完整图表数据:', {
+            //     instId,
+            //     timeFrame,
+            //     klineLimit,
+            //     currentLimit,
+            //     selectedIndicators,
+            //     note: `klineLimit状态值: ${klineLimit}, 将用于API的limit参数: ${currentLimit}`
+            // });
 
             // 准备请求参数
             const params: any = {
@@ -807,7 +865,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                 const filtered = periods.filter(p => p <= MAX_PERIOD);
                 const excluded = periods.filter(p => p > MAX_PERIOD);
                 if (excluded.length > 0) {
-                    console.warn(`[ChartContainer] ${indicatorName} 过滤超过${MAX_PERIOD}的周期:`, excluded);
+                    // console.warn(`[ChartContainer] ${indicatorName} 过滤超过${MAX_PERIOD}的周期:`, excluded);
                 }
                 return filtered;
             };
@@ -830,90 +888,133 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                 return false; // 无有效配置
             });
 
-            console.log('[ChartContainer] 过滤后的有效指标:', validIndicators);
+            // console.log('[ChartContainer] 过滤后的有效指标:', validIndicators);
 
             if (validIndicators.length > 0) {
                 params.indicators = validIndicators;
 
-                // 添加单周期参数（向后兼容）
-                // if (validIndicators.includes('EMA')) {
-                //     params.emaPeriod = indicatorConfigs.EMA.period;
-                // }
-                // if (validIndicators.includes('BOLL')) {
-                //     params.bollPeriod = indicatorConfigs.BOLL.period;
-                //     params.bollStdDev = indicatorConfigs.BOLL.stdDev;
-                // }
-                // if (validIndicators.includes('WMA')) {
-                //     params.wmaPeriod = indicatorConfigs.WMA.period;
-                // }
+                // 辅助函数：获取实际请求的周期（优先使用visiblePeriods）
+                const getRequestPeriods = (indicator: TechnicalIndicator): number[] => {
+                    const config = indicatorConfigs[indicator];
+                    // 优先使用visiblePeriods
+                    if (config?.visiblePeriods && config.visiblePeriods.length > 0) {
+                        return config.visiblePeriods;
+                    }
+                    // 回退到periods
+                    if (config?.periods && config.periods.length > 0) {
+                        return config.periods;
+                    }
+                    // 最后回退到单周期
+                    return config?.period ? [config.period] : [];
+                };
 
-                // 添加多周期参数（应用60上限过滤）
-                if (validIndicators.includes('EMA') && indicatorConfigs.EMA.periods && indicatorConfigs.EMA.periods.length > 0) {
-                    params.emaPeriods = filterPeriods(indicatorConfigs.EMA.periods, 'EMA');
-                    console.log('[ChartContainer] EMA多周期参数:', params.emaPeriods);
+                // 添加多周期参数（应用60上限过滤，使用visiblePeriods）
+                if (validIndicators.includes('EMA')) {
+                    const periods = getRequestPeriods('EMA');
+                    if (periods.length > 0) {
+                        params.emaPeriods = filterPeriods(periods, 'EMA');
+                    }
                 }
-                if (validIndicators.includes('SMA') && indicatorConfigs.SMA.periods && indicatorConfigs.SMA.periods.length > 0) {
-                    params.smaPeriods = filterPeriods(indicatorConfigs.SMA.periods, 'SMA');
-                    console.log('[ChartContainer] SMA多周期参数:', params.smaPeriods);
+                if (validIndicators.includes('SMA')) {
+                    const periods = getRequestPeriods('SMA');
+                    if (periods.length > 0) {
+                        params.smaPeriods = filterPeriods(periods, 'SMA');
+                    }
                 }
-                if (validIndicators.includes('WMA') && indicatorConfigs.WMA.periods && indicatorConfigs.WMA.periods.length > 0) {
-                    params.wmaPeriods = filterPeriods(indicatorConfigs.WMA.periods, 'WMA');
-                    console.log('[ChartContainer] WMA多周期参数:', params.wmaPeriods);
+                if (validIndicators.includes('WMA')) {
+                    const periods = getRequestPeriods('WMA');
+                    if (periods.length > 0) {
+                        params.wmaPeriods = filterPeriods(periods, 'WMA');
+                    }
                 }
                 // RSI强制使用多周期，且必须有有效配置
-                if (validIndicators.includes('RSI') && indicatorConfigs.RSI?.periods && indicatorConfigs.RSI.periods.length > 0) {
-                    params.rsiPeriods = filterPeriods(indicatorConfigs.RSI.periods, 'RSI');
-                    console.log('[ChartContainer] RSI多周期参数:', params.rsiPeriods);
+                if (validIndicators.includes('RSI')) {
+                    const periods = getRequestPeriods('RSI');
+                    if (periods.length > 0) {
+                        params.rsiPeriods = filterPeriods(periods, 'RSI');
+                    }
                 }
                 // BOLL多周期参数：将periods和stdDevs转换为 ["20_2.0", "30_1.5"] 格式
-                if (validIndicators.includes('BOLL') && indicatorConfigs.BOLL?.periods && indicatorConfigs.BOLL.periods.length > 0) {
-                    const bollConfig = indicatorConfigs.BOLL;
-                    const bollPeriods = filterPeriods(bollConfig.periods, 'BOLL');
-                    const bollStdDevs = bollConfig.stdDevs || [];
+                if (validIndicators.includes('BOLL')) {
+                    const periods = getRequestPeriods('BOLL');
+                    if (periods.length > 0) {
+                        const bollConfig = indicatorConfigs.BOLL;
+                        const bollPeriods = filterPeriods(periods, 'BOLL');
+                        const bollStdDevs = bollConfig?.stdDevs || [];
 
-                    if (bollPeriods.length > 0) {
-                        params.bollParams = bollPeriods.map((period: number, index: number) => {
-                            const stdDev = bollStdDevs[index] !== undefined
-                                ? bollStdDevs[index]
-                                : 2.0; // 默认标准差
-                            return `${period}_${stdDev}`;
-                        });
-                        console.log('[ChartContainer] BOLL多周期参数:', params.bollParams);
+                        if (bollPeriods.length > 0) {
+                            params.bollParams = bollPeriods.map((period: number, index: number) => {
+                                const stdDev = bollStdDevs[index] !== undefined
+                                    ? bollStdDevs[index]
+                                    : 2.0; // 默认标准差
+                                return `${period}_${stdDev}`;
+                            });
+                        }
+                    }
+                }
+                // KDJ
+                if (validIndicators.includes('KDJ')) {
+                    const periods = getRequestPeriods('KDJ');
+                    if (periods.length > 0) {
+                        params.kdjPeriods = filterPeriods(periods, 'KDJ');
+                    }
+                }
+                // CCI
+                if (validIndicators.includes('CCI')) {
+                    const periods = getRequestPeriods('CCI');
+                    if (periods.length > 0) {
+                        params.cciPeriods = filterPeriods(periods, 'CCI');
+                    }
+                }
+                // ATR
+                if (validIndicators.includes('ATR')) {
+                    const periods = getRequestPeriods('ATR');
+                    if (periods.length > 0) {
+                        params.atrPeriods = filterPeriods(periods, 'ATR');
+                    }
+                }
+                // OBV
+                if (validIndicators.includes('OBV')) {
+                    const periods = getRequestPeriods('OBV');
+                    if (periods.length > 0) {
+                        params.obvPeriods = filterPeriods(periods, 'OBV');
+                    }
+                }
+                // ADX
+                if (validIndicators.includes('ADX')) {
+                    const periods = getRequestPeriods('ADX');
+                    if (periods.length > 0) {
+                        params.adxPeriods = filterPeriods(periods, 'ADX');
                     }
                 }
             }
 
-            console.log('[ChartContainer] 发送API请求参数:', params);
+            // console.log('[ChartContainer] 发送API请求参数:', params);
 
             // 调用新的统一接口
             const response: CompleteChartData = await tradingService.getCompleteChartData(params);
-            console.log('获取到的完整图表数据:', response);
+            // console.log('获取到的完整图表数据:', response);
 
             if (response && response.candles && response.candles.length > 0) {
-                // 转换K线数据格式
-                const candlestickData: CandlestickData[] = response.candles.map((candle: MarkPriceCandle) => ({
-                    timestamp: candle.timestamp,
+                // 转换K线数据格式为 KLineBar
+                const klineData: KLineBar[] = response.candles.map((candle: MarkPriceCandle) => ({
+                    time: candle.timestamp,
                     open: candle.open,
                     high: candle.high,
                     low: candle.low,
                     close: candle.close,
-                    // 优先使用交易量，如果为0或不存在，尝试使用成交额(基础货币)，最后尝试成交额(计价货币)
-                    // 尝试匹配更多可能的字段名 (vol, volume, etc.)
                     volume: Number(candle.volume || (candle as any).vol || candle.volumeCcy || (candle as any).volCcy || candle.volCcyQuote || (candle as any).volCcyQuote || 0),
-                    confirm: candle.confirm === undefined || candle.confirm === null
-                        ? 1
-                        : (Number.isFinite(Number(candle.confirm)) ? Number(candle.confirm) : 1),
+                    confirmed: candle.confirm === 1,
                 }));
 
                 // 按时间排序
-                candlestickData.sort((a, b) => a.timestamp - b.timestamp);
-                console.log('转换后的K线数据:', candlestickData);
-                setData(candlestickData);
+                klineData.sort((a, b) => a.time - b.time);
+                setData(klineData);
 
                 // 设置当前标记价格（从getCompleteChartData获取）
                 if (response.markPrice) {
                     setCurrentMarkPrice(response.markPrice);
-                    console.log('设置当前标记价格:', response.markPrice);
+                    // console.log('设置当前标记价格:', response.markPrice);
                 }
 
                 // 处理技术指标数据
@@ -928,14 +1029,14 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                                 message: '',
                                 data: indicatorData
                             };
-                            console.log(`${indicator}指标数据处理成功:`, indicatorData);
+                            // console.log(`${indicator}指标数据处理成功:`, indicatorData);
                         }
                     });
 
                     setIndicatorData(newIndicatorData);
                 }
             } else {
-                console.log('完整图表数据为空或失败:', response);
+                // console.log('完整图表数据为空或失败:', response);
                 setError('未获取到数据');
                 message.error('获取图表数据失败');
             }
@@ -959,7 +1060,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
     // 监听外部markPrice变化（来自TradingForm的价格更新）
     useEffect(() => {
         if (markPrice && markPrice !== currentMarkPrice) {
-            console.log('🔄 [ChartContainer] 接收到外部价格更新:', markPrice);
+            // console.log('🔄 [ChartContainer] 接收到外部价格更新:', markPrice);
             setCurrentMarkPrice(markPrice);
         }
     }, [markPrice, currentMarkPrice]);
@@ -971,13 +1072,13 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
     // 处理K线采样变化
     const handleKlineLimitChange = (newLimit: number) => {
-        console.log(`🎯 [ChartContainer] 采样按钮点击，更新klineLimit: ${newLimit}`);
+        // console.log(`🎯 [ChartContainer] 采样按钮点击，更新klineLimit: ${newLimit}`);
         updateKlineLimit(newLimit as any);
     };
 
     // 处理指标激活
     const handleActivateIndicator = (indicator: TechnicalIndicator) => {
-        console.log(`[ChartContainer] 激活指标 ${indicator}`);
+        // console.log(`[ChartContainer] 激活指标 ${indicator}`);
         toggleIndicator(indicator);
     };
 
@@ -985,28 +1086,29 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
     const indicatorConfigsString = useMemo(() => {
         try {
             // 创建一个稳定的排序对象来避免序列化时的顺序问题
-            // 注意：排除visiblePeriods，因为可见性变化不应触发数据重新获取
+            // 包含visiblePeriods，因为可见性变化需要触发数据重新获取
             const stableConfigs: any = {};
             Object.keys(indicatorConfigs).sort().forEach(key => {
                 const config = indicatorConfigs[key as TechnicalIndicator];
                 stableConfigs[key] = {
                     period: config.period,
                     periods: config.periods ? [...config.periods].sort((a, b) => a - b) : undefined,
+                    visiblePeriods: config.visiblePeriods ? [...config.visiblePeriods].sort((a, b) => a - b) : undefined,
                     periodColors: config.periodColors,
                     stdDev: config.stdDev,
+                    stdDevs: config.stdDevs,
                     fastPeriod: config.fastPeriod,
                     slowPeriod: config.slowPeriod,
                     signalPeriod: config.signalPeriod
-                    // 显式排除 visiblePeriods
                 };
             });
             const result = JSON.stringify(stableConfigs);
 
             // 添加调试信息追踪配置变更
-            console.log(`[ChartContainer] indicatorConfigsString 更新 (排除visiblePeriods):`, {
-                字符串长度: result.length,
-                指标数量: Object.keys(stableConfigs).length
-            });
+            // console.log(`[ChartContainer] indicatorConfigsString 更新 (排除visiblePeriods):`, {
+            //     字符串长度: result.length,
+            //     指标数量: Object.keys(stableConfigs).length
+            // });
 
             return result;
         } catch (error) {
@@ -1028,44 +1130,44 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
     // 调试函数：打印当前技术指标状态
     const debugIndicatorState = useCallback(() => {
         console.group('🔍 [ChartContainer] 技术指标状态调试');
-        console.log('选中的指标:', selectedIndicators);
-        console.log('指标配置详情:', indicatorConfigs);
-        console.log('指标配置字符串:', indicatorConfigsString ? indicatorConfigsString.substring(0, 200) + '...' : 'undefined');
-        console.log('指标数据状态:', Object.keys(indicatorData));
+        // console.log('选中的指标:', selectedIndicators);
+        // console.log('指标配置详情:', indicatorConfigs);
+        // console.log('指标配置字符串:', indicatorConfigsString ? indicatorConfigsString.substring(0, 200) + '...' : 'undefined');
+        // console.log('指标数据状态:', Object.keys(indicatorData));
 
         // 检查每个选中指标的配置
         selectedIndicators.forEach(indicator => {
             const config = indicatorConfigs[indicator];
             const hasMultiPeriod = config.periods && config.periods.length > 0;
-            console.log(`📊 ${indicator} 指标:`, {
-                基础周期: config.period,
-                多周期: config.periods,
-                多周期数量: config.periods?.length || 0,
-                颜色配置: config.periodColors,
-                标准差: config.stdDev,
-                是否多周期模式: hasMultiPeriod,
-                是否有数据: !!indicatorData[indicator],
-                数据结构: indicatorData[indicator] ? Object.keys(indicatorData[indicator]) : []
-            });
+            // console.log(`📊 ${indicator} 指标:`, {
+            //     基础周期: config.period,
+            //     多周期: config.periods,
+            //     多周期数量: config.periods?.length || 0,
+            //     颜色配置: config.periodColors,
+            //     标准差: config.stdDev,
+            //     是否多周期模式: hasMultiPeriod,
+            //     是否有数据: !!indicatorData[indicator],
+            //     数据结构: indicatorData[indicator] ? Object.keys(indicatorData[indicator]) : []
+            // });
 
             // 特别检查多周期配置
             if (hasMultiPeriod && config.periods) {
-                console.log(`🔢 ${indicator} 多周期详情:`, {
-                    周期列表: config.periods,
-                    对应颜色: config.periodColors,
-                    周期颜色映射: config.periods.map((period, index) => ({
-                        period,
-                        color: config.periodColors?.[index]
-                    }))
-                });
+                // console.log(`🔢 ${indicator} 多周期详情:`, {
+                //     周期列表: config.periods,
+                //     对应颜色: config.periodColors,
+                //     周期颜色映射: config.periods.map((period, index) => ({
+                //         period,
+                //         color: config.periodColors?.[index]
+                //     }))
+                // });
             }
         });
 
-        console.log('✨ 配置变更追踪信息:', {
-            选中指标数量: selectedIndicators.length,
-            配置字符串长度: indicatorConfigsString ? indicatorConfigsString.length : 0,
-            数据状态: indicatorData ? '有效' : '无'
-        });
+        // console.log('✨ 配置变更追踪信息:', {
+        //     选中指标数量: selectedIndicators.length,
+        //     配置字符串长度: indicatorConfigsString ? indicatorConfigsString.length : 0,
+        //     数据状态: indicatorData ? '有效' : '无'
+        // });
 
         console.groupEnd();
     }, [selectedIndicatorsString, indicatorConfigsString, fetchCompleteChartData]);
@@ -1076,24 +1178,24 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
         // 添加手动强制更新函数
         (window as any).forceChartUpdate = () => {
-            console.log('🔄 [ChartContainer] 手动强制触发图表更新');
+            // console.log('🔄 [ChartContainer] 手动强制触发图表更新');
             fetchCompleteChartData();
         };
 
         // 添加配置比较函数
         (window as any).compareIndicatorConfigs = () => {
             console.group('🔍 配置比较分析');
-            console.log('当前配置:', indicatorConfigs);
-            console.log('配置字符串:', indicatorConfigsString);
-            console.log('字符串长度:', indicatorConfigsString.length);
-            console.log('选中指标:', selectedIndicators);
-            console.log('指标数据:', Object.keys(indicatorData));
+            // console.log('当前配置:', indicatorConfigs);
+            // console.log('配置字符串:', indicatorConfigsString);
+            // console.log('字符串长度:', indicatorConfigsString.length);
+            // console.log('选中指标:', selectedIndicators);
+            // console.log('指标数据:', Object.keys(indicatorData));
             console.groupEnd();
         };
 
         // 添加配置更新模拟器
         (window as any).simulateConfigUpdate = (indicator: string, newPeriods: number[]) => {
-            console.log(`🧪 [ChartContainer] 模拟配置更新 ${indicator}:`, newPeriods);
+            // console.log(`🧪 [ChartContainer] 模拟配置更新 ${indicator}:`, newPeriods);
             // 直接调用组件的updateIndicatorConfig函数
             updateIndicatorConfig(indicator as any, {
                 periods: newPeriods,
@@ -1104,14 +1206,14 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
     // 监听指标选择和参数变化，自动重新获取数据（使用统一的fetchCompleteChartData）
     useEffect(() => {
-        console.log('🔄 [ChartContainer] 指标配置变化触发重新获取数据', {
-            selectedIndicators,
-            selectedIndicatorsCount: selectedIndicators.length,
-            indicatorConfigsKeys: Object.keys(indicatorConfigs),
-            indicatorConfigsString: indicatorConfigsString ? indicatorConfigsString.substring(0, 200) + '...' : 'undefined',
-            changeDetected: true,
-            详细配置: indicatorConfigs
-        });
+        // console.log('🔄 [ChartContainer] 指标配置变化触发重新获取数据', {
+        //     selectedIndicators,
+        //     selectedIndicatorsCount: selectedIndicators.length,
+        //     indicatorConfigsKeys: Object.keys(indicatorConfigs),
+        //     indicatorConfigsString: indicatorConfigsString ? indicatorConfigsString.substring(0, 200) + '...' : 'undefined',
+        //     changeDetected: true,
+        //     详细配置: indicatorConfigs
+        // });
 
         // 自动调用调试函数（开发环境）
         if (false) { // 禁用开发环境调试功能
@@ -1133,7 +1235,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
             });
 
             if (removedIndicators.length > 0) {
-                console.log('[ChartContainer] 清理指标数据:', removedIndicators);
+                // console.log('[ChartContainer] 清理指标数据:', removedIndicators);
             }
 
             return newData;
@@ -1141,13 +1243,13 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
         // 使用更短的防抖延迟，提高配置变更的响应速度
         const timeoutId = setTimeout(() => {
-            console.log('[ChartContainer] 执行数据重新获取 - 配置已变更');
+            // console.log('[ChartContainer] 执行数据重新获取 - 配置已变更');
             fetchCompleteChartData();
         }, 50); // 减少延迟到50ms，提供更好的用户体验
 
         return () => {
             clearTimeout(timeoutId);
-            console.log('[ChartContainer] 清理防抖定时器');
+            // console.log('[ChartContainer] 清理防抖定时器');
         };
     }, [selectedIndicatorsString, indicatorConfigsString, fetchCompleteChartData]); // 使用字符串化的依赖确保变化检测
 
@@ -1311,9 +1413,6 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                                             ))}
                                         </div>
 
-                                        {/* 分割线 */}
-                                        <div className="control-divider"></div>
-
                                         {/* 第二行：采样控制 */}
                                         <div className="sample-row">
                                             <span className="sample-label">采样:</span>
@@ -1333,33 +1432,7 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                                         {/* 分割线 */}
                                         <div className="control-divider"></div>
 
-                                        {/* 第三行：排序控制（图标按钮） */}
-                                        <div className="sort-row">
-                                            <span className="sort-label">排序:</span>
-                                            <Tooltip title="新在左">
-                                                <Button
-                                                    size="small"
-                                                    type={!reverseOrder ? 'text' : 'default'}
-                                                    disabled={!reverseOrder}
-                                                    icon={<LeftOutlined/>}
-                                                    onClick={() => setReverseOrder(false)}
-                                                />
-                                            </Tooltip>
-                                            <Tooltip title="新在右">
-                                                <Button
-                                                    size="small"
-                                                    type={reverseOrder ? 'text' : 'default'}
-                                                    disabled={reverseOrder}
-                                                    icon={<RightOutlined/>}
-                                                    onClick={() => setReverseOrder(true)}
-                                                />
-                                            </Tooltip>
-                                        </div>
-
-                                        {/* 分割线 */}
-                                        <div className="control-divider"></div>
-
-                                        {/* 第三行：状态控制 */}
+                                        {/* 状态控制 */}
                                         <div className="status-row">
                                             <span className="status-label">状态:</span>
                                             <span
@@ -1394,17 +1467,15 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
 
                             {/* K线图 */}
                             <div style={{width: '100%', height: height - 120}}>
-                                <KLineChart
-                                    symbol={instId}
-                                    period={timeFrame as any}
-                                    data={bars}
+                                <LightweightCandlestickChart
+                                    data={data}
+                                    height={height - 120}
                                     loading={loading}
                                     markPrice={currentMarkPrice || markPrice}
-                                    reverseOrder={reverseOrder}
-                                    indicators={indicatorData}
-                                        isDebugMode={true}
-                                    indicatorConfigs={indicatorConfigs}
-                                    onUpdateIndicatorConfig={updateIndicatorConfig}
+                                    timeFrame={timeFrame}
+                                    indicators={convertedIndicators}
+                                    visibleIndicators={visibleIndicators}
+                                    maxVisibleBars={klineLimit}
                                 />
                             </div>
                         </div>
@@ -1422,11 +1493,11 @@ const ChartContainer: React.FC<ChartContainerProps> = ({
                 _error={error}
                 timeFrame={timeFrame as any}
                 klineLimit={klineLimit}
-                reverseOrder={reverseOrder}
-                onReverseOrderChange={setReverseOrder}
                 selectedIndicators={selectedIndicators}
                 indicatorConfigs={indicatorConfigs}
                 indicatorData={indicatorData}
+                convertedIndicators={convertedIndicators}
+                visibleIndicators={visibleIndicators}
                 markPrice={markPrice}
                 currentMarkPrice={currentMarkPrice}
                 fourHourAvgChange={fourHourAvgChange}

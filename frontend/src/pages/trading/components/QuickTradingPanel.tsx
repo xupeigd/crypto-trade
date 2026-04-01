@@ -46,10 +46,13 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
     const [priceFlashClass, setPriceFlashClass] = useState('');  // 价格更新时的闪烁动画class
 
     // 止盈止损状态（简化版，只支持百分比）
+    // 默认勾选，使用默认公式设置百分比
+    const defaultTP = parseFloat((0.8 / leverage * 100).toFixed(2)); // 默认止盈: 0.8/杠杆*100
+    const defaultSL = parseFloat((0.6 / leverage * 100).toFixed(2)); // 默认止损: 0.6/杠杆*100
     const [takeProfitEnabled, setTakeProfitEnabled] = useState(true);
     const [stopLossEnabled, setStopLossEnabled] = useState(true);
-    const [takeProfitPct, setTakeProfitPct] = useState<number | null>(null);
-    const [stopLossPct, setStopLossPct] = useState<number | null>(null);
+    const [takeProfitPct, setTakeProfitPct] = useState<number | null>(defaultTP);
+    const [stopLossPct, setStopLossPct] = useState<number | null>(defaultSL);
 
     // 实时计算的止盈止损价格
     const [calculatedPrices, setCalculatedPrices] = useState({
@@ -73,6 +76,7 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
     // 使用ref来跟踪当前值，避免循环依赖
     const takeProfitPctRef = useRef(takeProfitPct);
     const stopLossPctRef = useRef(stopLossPct);
+    const prevInstIdRef = useRef(''); // 跟踪上一次的合约ID，初始为空确保首次渲染触发
 
     // 更新ref值
     useEffect(() => {
@@ -103,6 +107,35 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
         {value: 5, label: '5x'}
     ];
 
+    // 合并止盈止损状态管理：合约切换使用默认公式 + 接口返回后更新智能值
+    useEffect(() => {
+        const instIdChanged = prevInstIdRef.current !== instId;
+
+        // 计算默认值
+        const defaultTP = parseFloat((0.8 / leverage * 100).toFixed(2));
+        const defaultSL = parseFloat((0.6 / leverage * 100).toFixed(2));
+
+        // 合约切换或首次渲染时设置默认值
+        if (instIdChanged) {
+            setTakeProfitEnabled(true);
+            setStopLossEnabled(true);
+            setTakeProfitPct(defaultTP);
+            setStopLossPct(defaultSL);
+        }
+
+        prevInstIdRef.current = instId;
+
+        // 当 fourHourAvgChange 有效时，更新为智能值
+        if (fourHourAvgChange && fourHourAvgChange !== 0) {
+            const absChange = Math.abs(fourHourAvgChange);
+            const takeProfitSmart = parseFloat((absChange * 1.2).toFixed(2));
+            const stopLossSmart = parseFloat((absChange * 1.5).toFixed(2));
+
+            setTakeProfitPct(takeProfitSmart);
+            setStopLossPct(stopLossSmart);
+        }
+    }, [instId, fourHourAvgChange, leverage]);
+
     // 更新价格变化（仅在用户未手动编辑时）
     useEffect(() => {
         if (currentPrice && orderType === 'limit' && !hasManuallyEditedPrice && !isUserEditing) {
@@ -116,27 +149,6 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
             }
         }
     }, [currentPrice, orderType, hasManuallyEditedPrice, isUserEditing]);
-
-    // 智能默认值计算：基于4小时平均涨跌幅自动设置止盈止损百分比
-    useEffect(() => {
-        if (fourHourAvgChange && fourHourAvgChange !== 0) {
-            const absChange = Math.abs(fourHourAvgChange);
-            const takeProfitDefault = parseFloat((absChange * 1.2).toFixed(2));
-            const stopLossDefault = parseFloat((absChange * 1.5).toFixed(2));
-
-            // 当启用止盈且没有设置值时，自动设置默认值
-            if (takeProfitEnabled && (!takeProfitPctRef.current || takeProfitPctRef.current === 0)) {
-                setTakeProfitPct(takeProfitDefault);
-                console.log(`智能设置止盈百分比: ${takeProfitDefault}% (基于4H平均: ${absChange.toFixed(2)}%)`);
-            }
-
-            // 当启用止损且没有设置值时，自动设置默认值
-            if (stopLossEnabled && (!stopLossPctRef.current || stopLossPctRef.current === 0)) {
-                setStopLossPct(stopLossDefault);
-                console.log(`智能设置止损百分比: ${stopLossDefault}% (基于4H平均: ${absChange.toFixed(2)}%)`);
-            }
-        }
-    }, [fourHourAvgChange, takeProfitEnabled, stopLossEnabled]);
 
     // 实时计算止盈止损价格和预期金额
     useEffect(() => {
@@ -248,14 +260,14 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
                 source: 'web' as const // 用户手动下单
             };
 
-            console.log('执行交易:', orderRequest);
+            // console.log('执行交易:', orderRequest);
 
             // 调用真实交易接口
             const response = await tradingService.placeOrder(orderRequest);
-            console.log('交易响应:', response);
+            // console.log('交易响应:', response);
 
             const result = response.data;
-            console.log('交易结果:', result);
+            // console.log('交易结果:', result);
 
             if (result.success) {
                 // 检查风控模式
@@ -576,10 +588,11 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
                             </div>
                             {takeProfitEnabled && (
                                 <div className="profit-loss-input">
+                                    {/* DEBUG: takeProfitPct={takeProfitPct}, stopLossPct={stopLossPct} */}
                                     <div className="percentage-input-wrapper">
                                         <input
                                             type="number"
-                                            value={takeProfitPct || ''}
+                                            value={takeProfitPct ?? ''}
                                             onChange={(e) => {
                                                 const value = Number(e.target.value);
                                                 setTakeProfitPct(value > 0 ? value : null);
@@ -618,7 +631,7 @@ const QuickTradingPanel: React.FC<QuickTradingPanelProps> = ({
                                     <div className="percentage-input-wrapper">
                                         <input
                                             type="number"
-                                            value={stopLossPct || ''}
+                                            value={stopLossPct ?? ''}
                                             onChange={(e) => {
                                                 const value = Number(e.target.value);
                                                 setStopLossPct(value > 0 ? value : null);

@@ -11,8 +11,8 @@ import {
     UpOutlined,
     WalletOutlined
 } from '@ant-design/icons';
-import EquityChartModal from '../../components/bot/EquityChartModal';
-import EquityMiniChart from '../../components/bot/EquityMiniChart';
+import EquityChartModal from '../../components/charts/LightweightEquityChartModal';
+import LightweightEquityChart from '../../components/charts/LightweightEquityChart';
 import PositionMiniList from '../../components/bot/PositionMiniList';
 import OrderMiniList from '../../components/bot/OrderMiniList';
 import {tradingService} from '../../services/tradingService';
@@ -294,13 +294,13 @@ const BotStatus: React.FC<BotStatusProps> = ({status, showEquityModal, onOpenEqu
                     <Row gutter={16}>
                         {/* 第一栏 - 权益K线图 (5/10 ≈ 12/24) */}
                         <Col span={9}>
-                            <EquityMiniChart
+                            <LightweightEquityChart
                                 key={`equity-${dataVersion}`}
                                 apiKeyId={status.apiKeyId}
                             />
                         </Col>
 
-                        {/* 第二栏 - 持仓列表 (3/10 ≈ 7/24) */}
+                        {/* 第二栏 - 持仓列表 (3/7/24) */}
                         <Col span={9}>
                             <div ref={positionMiniListAnchorRef}>
                                 <PositionMiniList

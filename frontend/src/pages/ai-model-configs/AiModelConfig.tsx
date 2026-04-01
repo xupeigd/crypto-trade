@@ -94,6 +94,7 @@ const AiModelConfig: React.FC = () => {
         setEditingModel(model);
         const modelType = (model.modelType as ModelType) || ModelType.LOCAL;
         setSelectedModelType(modelType);
+        form.resetFields();
         form.setFieldsValue(model);
         setModalVisible(true);
     };
@@ -145,6 +146,7 @@ const AiModelConfig: React.FC = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
+            console.log('保存时的values:', values); // 调试日志
 
             if (editingModel && editingModel.configId) {
                 // 更新
@@ -473,7 +475,7 @@ const AiModelConfig: React.FC = () => {
                                 label="模型ID"
                                 rules={[
                                     {required: true, message: '请输入模型ID'},
-                                    {pattern: /^[a-zA-Z0-9:-]+$/, message: '模型ID只能包含字母、数字、冒号和连字符'}
+                                    {pattern: /^[a-zA-Z0-9.:\-]+$/, message: '模型ID只能包含字母、数字、冒号、连字符和小数点'}
                                 ]}
                             >
                                 <Input
@@ -575,8 +577,7 @@ const AiModelConfig: React.FC = () => {
                                         placeholder="请选择API格式"
                                         options={[
                                             {label: ApiFormatLabels[ApiFormat.OPENAI], value: ApiFormat.OPENAI},
-                                            {label: ApiFormatLabels[ApiFormat.CLAUDE], value: ApiFormat.CLAUDE},
-                                            {label: ApiFormatLabels[ApiFormat.CUSTOM], value: ApiFormat.CUSTOM}
+                                            {label: ApiFormatLabels[ApiFormat.CLAUDE], value: ApiFormat.CLAUDE}
                                         ]}
                                     />
                                 </Form.Item>

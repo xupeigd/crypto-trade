@@ -90,6 +90,34 @@ server:
   port: 8080
   # context-path已移除,统一使用根路径访问
 
+bot:
+  flow:
+    enabled: true
+    display:
+      max-display-count: 5
+      failed-retention-seconds: 30
+    nodes:
+      - code: PROMPT_BUILD
+        name: 构建Prompt
+        order-no: 1
+        enabled: true
+      - code: MODEL_CALL
+        name: 调用模型
+        order-no: 2
+        enabled: true
+      - code: RISK_CONTROL
+        name: 风控审核
+        order-no: 3
+        enabled: true
+      - code: TRADE_ACTION
+        name: 执行交易
+        order-no: 4
+        enabled: true
+      - code: COMPLETE
+        name: 完成
+        order-no: 5
+        enabled: true
+
 # Logging Configuration
 logging:
   level:
@@ -208,7 +236,7 @@ ai:
     auto-execution: ${AI_TRADING_AUTO_EXECUTION:true}
 
     # 执行模式: dry-run(模拟) / live(实盘)
-    execution-mode: ${AI_TRADING_EXECUTION_MODE:live}
+    execution-mode: ${AI_TRADING_EXECUTION_MODE:dry-run}
 
     # 最低置信度要求（0-100）
     min-confidence: ${AI_TRADING_MIN_CONFIDENCE:60}

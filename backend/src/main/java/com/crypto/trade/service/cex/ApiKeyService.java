@@ -436,4 +436,42 @@ public class ApiKeyService {
         ApiKey entity = getDecryptedKey(keyId);
         return ApiKeyDecryptedModel.fromEntity(entity);
     }
+
+    /**
+     * 获取用于编辑的密钥数据
+     * ENV存储：返回原始环境变量名
+     * DB存储：敏感字段返回null（前端留空，用户不填则不覆盖）
+     *
+     * @param keyId 密钥ID
+     * @return 编辑用的密钥模型
+     */
+    public ApiKeyDecryptedModel getKeyForEdit(Long keyId) {
+        ApiKey key = apiKeyRepository.findById(keyId)
+                .orElseThrow(() -> new IllegalArgumentException("API Key not found with id: " + keyId));
+
+        ApiKeyDecryptedModel model = ApiKeyDecryptedModel.builder()
+                .keyId(key.getKeyId())
+                .keyName(key.getKeyName())
+                .cexName(key.getCexName())
+                .storageType(key.getStorageType().name())
+                .status(key.getStatus())
+                .isLiveTrading(key.getIsLiveTrading())
+                .description(key.getDescription())
+                .createdTime(key.getCreatedTime() != null ? 
+                        key.getCreatedTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : null)
+                .updatedTime(key.getUpdatedTime() != null ? 
+                        key.getUpdatedTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() : null)
+                .build();
+
+        // 根据存储类型处理敏感字段
+        if (StorageType.ENV == key.getStorageType()) {
+            // ENV模式：返回原始环境变量名
+            model.setAccessKey(key.getAccessKey());
+            model.setSecretKey(key.getSecretKey());
+            model.setPassPhrase(key.getPassPhrase());
+        }
+        // DB模式：敏感字段保持null，前端留空
+
+        return model;
+    }
 }

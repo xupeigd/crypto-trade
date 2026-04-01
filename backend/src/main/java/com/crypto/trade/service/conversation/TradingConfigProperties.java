@@ -1,5 +1,6 @@
 package com.crypto.trade.service.conversation;
 
+import com.crypto.trade.entity.ExecutionMode;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -27,10 +28,10 @@ public class TradingConfigProperties {
 
     /**
      * 执行模式
-     * - dry-run: 模拟执行，不实际下单
+     * - dry-run: 模拟执行，不实际下单（默认）
      * - live: 实盘执行，真实下单
      */
-    private ExecutionMode executionMode = ExecutionMode.LIVE;
+    private ExecutionMode executionMode = ExecutionMode.DRY_RUN;
 
     /**
      * 最低置信度要求
@@ -119,20 +120,5 @@ public class TradingConfigProperties {
      */
     public boolean isDryRunMode() {
         return ExecutionMode.DRY_RUN.equals(executionMode);
-    }
-
-    /**
-     * 执行模式枚举
-     */
-    public enum ExecutionMode {
-        /**
-         * 模拟执行模式 - 验证参数但不真实下单
-         */
-        DRY_RUN,
-
-        /**
-         * 实盘执行模式 - 真实下单交易
-         */
-        LIVE
     }
 }

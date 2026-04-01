@@ -333,9 +333,9 @@ public class UnifiedBalanceService {
         // 异步预热，不阻塞服务启动
         CompletableFuture.runAsync(() -> {
             try {
-                log.info("开始预热余额缓存（异步执行）");
+                log.debug("开始预热余额缓存（异步执行）");
                 updateBalanceData();
-                log.info("余额缓存预热完成");
+                log.debug("余额缓存预热完成");
             } catch (Exception e) {
                 log.error("余额缓存预热失败（不影响服务运行）", e);
             }

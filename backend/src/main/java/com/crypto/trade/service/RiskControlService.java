@@ -1,13 +1,18 @@
 package com.crypto.trade.service;
 
 import com.crypto.trade.config.AiTradingRiskControlConfig;
+import com.crypto.trade.entity.ExecutionMode;
+import com.crypto.trade.entity.RiskControlConfig;
 import com.crypto.trade.entity.RiskMode;
 import com.crypto.trade.entity.RiskModeHistory;
 import com.crypto.trade.entity.TradingStyle;
 import com.crypto.trade.entity.TradingStyleHistory;
+import com.crypto.trade.repository.RiskControlConfigRepository;
 import com.crypto.trade.repository.RiskModeHistoryRepository;
 import com.crypto.trade.repository.TradingStyleHistoryRepository;
+import com.crypto.trade.service.conversation.TradingConfigProperties;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +27,7 @@ import java.util.List;
  * @author page
  * @date 2026-02-12 11:25
  */
+@Slf4j
 @Service
 @Transactional
 public class RiskControlService {
@@ -29,9 +35,13 @@ public class RiskControlService {
     @Autowired
     AiTradingRiskControlConfig riskControlConfig;
     @Autowired
+    RiskControlConfigRepository riskControlConfigRepository;
+    @Autowired
     RiskModeHistoryRepository riskModeHistoryRepository;
     @Autowired
     TradingStyleHistoryRepository tradingStyleHistoryRepository;
+    @Autowired
+    TradingConfigProperties tradingConfigProperties;
 
     /**
      * 获取当前风控模式
@@ -188,7 +198,75 @@ public class RiskControlService {
                 LocalDateTime.now()
         );
 
+        // 添加执行模式信息 - 优先从数据库获取，若为空则使用全局配置
+        ExecutionMode dbExecutionMode = riskControlConfigRepository.findByConfigId(1L)
+                .map(RiskControlConfig::getExecutionMode)
+                .orElse(null);
+        info.executionMode = dbExecutionMode != null ? dbExecutionMode : tradingConfigProperties.getExecutionMode();
+        info.defaultExecutionMode = tradingConfigProperties.getExecutionMode();
+
         return info;
+    }
+
+    // ========== 执行模式相关方法 ==========
+
+    /**
+     * 获取当前执行模式
+     * 优先级: 数据库配置 > 全局配置
+     */
+    public ExecutionMode getCurrentExecutionMode() {
+        ExecutionMode dbMode = riskControlConfigRepository.findByConfigId(1L)
+                .map(RiskControlConfig::getExecutionMode)
+                .orElse(null);
+        return dbMode != null ? dbMode : tradingConfigProperties.getExecutionMode();
+    }
+
+    /**
+     * 获取全局默认执行模式
+     */
+    public ExecutionMode getDefaultExecutionMode() {
+        return tradingConfigProperties.getExecutionMode();
+    }
+
+    /**
+     * 设置执行模式（保存到数据库）
+     */
+    public void setExecutionMode(ExecutionMode newMode, String changeReason, HttpServletRequest request) {
+        ExecutionMode oldMode = getCurrentExecutionMode();
+
+        // 如果模式没有变化，直接返回
+        if (oldMode == newMode) {
+            throw new IllegalArgumentException("执行模式已经是 " + newMode.name() + "，无需修改");
+        }
+
+        log.info("设置执行模式: {} -> {}, 原因: {}", oldMode, newMode, changeReason);
+
+        // 获取数据库配置记录
+        RiskControlConfig config = riskControlConfigRepository.findByConfigId(1L)
+                .orElseThrow(() -> new IllegalStateException("风控配置记录不存在"));
+
+        // 更新执行模式
+        config.setExecutionMode(newMode);
+        riskControlConfigRepository.save(config);
+
+        log.info("执行模式设置成功: {}", newMode);
+    }
+
+    /**
+     * 重置执行模式为全局配置
+     */
+    public void resetExecutionMode(String changeReason, HttpServletRequest request) {
+        log.info("重置执行模式为全局配置，原因: {}", changeReason);
+
+        // 获取数据库配置记录
+        RiskControlConfig config = riskControlConfigRepository.findByConfigId(1L)
+                .orElseThrow(() -> new IllegalStateException("风控配置记录不存在"));
+
+        // 设置为null表示使用全局配置
+        config.setExecutionMode(null);
+        riskControlConfigRepository.save(config);
+
+        log.info("执行模式已重置为全局配置");
     }
 
     // ========== 交易风格相关方法 ==========
@@ -383,6 +461,10 @@ public class RiskControlService {
         public boolean isC5AggressiveStyle;
         public TradingStyleHistory lastTradingStyleChange;
         public long totalTradingStyleChangesToday;
+
+        // 执行模式相关字段
+        public ExecutionMode executionMode;
+        public ExecutionMode defaultExecutionMode;
 
         // Getter and Setter methods
         public RiskMode getCurrentMode() {

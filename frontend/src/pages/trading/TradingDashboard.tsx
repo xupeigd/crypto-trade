@@ -40,14 +40,14 @@ const TradingDashboard: React.FC = () => {
     // 使用页面级定时器Hook，保持10秒间隔
     const {isActive: isTimerActive, start: startTimer, stop: stopTimer} = usePageTimer(
         async () => {
-            console.log('交易仪表板定时器触发，刷新持仓和余额数据');
+            // console.log('交易仪表板定时器触发，刷新持仓和余额数据');
             try {
                 // 并行请求持仓和余额数据
                 await Promise.all([
                     fetchPositionData(),
                     balanceCardsRef.current?.refreshBalance()
                 ]);
-                console.log('定时器刷新完成，持仓和余额数据已更新');
+                // console.log('定时器刷新完成，持仓和余额数据已更新');
             } catch (error) {
                 console.error('定时器刷新失败:', error);
             }
@@ -72,7 +72,7 @@ const TradingDashboard: React.FC = () => {
     const handleManualRefresh = useCallback(async () => {
         if (isRefreshing) return;
 
-        console.log('执行手动刷新，更新持仓和余额数据');
+        // console.log('执行手动刷新，更新持仓和余额数据');
         setIsRefreshing(true);
 
         try {
@@ -81,7 +81,7 @@ const TradingDashboard: React.FC = () => {
                 fetchPositionData(),
                 balanceCardsRef.current?.refreshBalance()
             ]);
-            console.log('手动刷新完成，持仓和余额数据已更新');
+            // console.log('手动刷新完成，持仓和余额数据已更新');
         } catch (error) {
             console.error('手动刷新失败:', error);
         } finally {
@@ -91,13 +91,13 @@ const TradingDashboard: React.FC = () => {
 
     // 初始化数据 - 只初始化持仓数据，避免重复调用
     useEffect(() => {
-        console.log("TradingDashboard 初始化，获取持仓数据");
+        // console.log("TradingDashboard 初始化，获取持仓数据");
         fetchPositionData();
     }, []);
     // 监听 selectedCex 变化，刷新持仓数据
     useEffect(() => {
         if (selectedCex) {
-            console.log('selectedCex 变化，刷新持仓数据:', selectedCex);
+            // console.log('selectedCex 变化，刷新持仓数据:', selectedCex);
             fetchPositionData();
         }
     }, [selectedCex]);
@@ -120,7 +120,7 @@ const TradingDashboard: React.FC = () => {
                     <span
                         className={isTimerActive || isRefreshing ? "cursor-not-allowed" : "cursor-pointer text-blue-600"}
                         onClick={() => {
-                            console.log('TradingDashboard 手动刷新按钮被点击，isTimerActive:', isTimerActive, 'isRefreshing:', isRefreshing);
+                            // console.log('TradingDashboard 手动刷新按钮被点击，isTimerActive:', isTimerActive, 'isRefreshing:', isRefreshing);
                             if (!isTimerActive && !isRefreshing) {
                                 handleManualRefresh();
                             }
@@ -233,9 +233,9 @@ const TradingDashboard: React.FC = () => {
                 <Col span={12}>
                     <Card title="最近活动" variant="borderless">
                         <div style={{color: '#666'}}>
-                            <p>• BTC/USDT 多头仓位开仓</p>
-                            <p>• ETH/USDT 空头仓位平仓</p>
-                            <p>• SOL/USDT 多头仓位加仓</p>
+                            <p>• BTC/₮ 多头仓位开仓</p>
+                            <p>• ETH/₮ 空头仓位平仓</p>
+                            <p>• SOL/₮ 多头仓位加仓</p>
                         </div>
                     </Card>
                 </Col>

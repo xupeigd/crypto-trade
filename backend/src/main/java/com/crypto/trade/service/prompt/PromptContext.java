@@ -9,7 +9,9 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * PromptContext
@@ -78,6 +80,30 @@ public class PromptContext {
      */
     @Builder.Default
     private Map<String, Object> configuration = new HashMap<>();
+
+    /**
+     * 已处理的技术指标key集合（instId#timeframe格式）
+     * 用于在整个prompt生成阶段对OHLC技术指标进行全局去重
+     */
+    @Builder.Default
+    private Set<String> processedIndicators = new HashSet<>();
+
+    /**
+     * 检查并标记instId#timeframe是否已处理
+     * 用于技术指标去重，防止同一个交易对+时间周期重复返回数据
+     *
+     * @param instId    合约代码
+     * @param timeframe 时间周期
+     * @return true-新的key，允许处理；false-已处理过，应跳过
+     */
+    public boolean checkAndMarkProcessed(String instId, String timeframe) {
+        String key = instId + "#" + timeframe;
+        if (processedIndicators.contains(key)) {
+            return false;  // 已处理过
+        }
+        processedIndicators.add(key);
+        return true;  // 新的key，允许处理
+    }
 
     /**
      * 是否启用思考模式

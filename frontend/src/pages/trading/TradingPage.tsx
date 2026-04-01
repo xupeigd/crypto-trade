@@ -156,7 +156,7 @@ const OkxTradingPage: React.FC = () => {
                                         alignItems: 'center',
                                         justifyContent: 'space-between'
                                     }}>
-                                        <span>{apiKey.keyName}</span>
+                                        <span>{apiKey.keyName} ({apiKey.vendor})</span>
                                         <Tag
                                             color={apiKey.isLiveTrading ? 'red' : 'green'}
                                             style={{marginLeft: 8}}

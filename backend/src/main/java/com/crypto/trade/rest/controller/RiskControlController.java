@@ -313,4 +313,83 @@ public class RiskControlController {
             return ApiResponse.fail("获取最近一次交易风格变更失败: " + e.getMessage());
         }
     }
+
+    // ========== 执行模式相关端点 ==========
+
+    /**
+     * 获取当前执行模式
+     *
+     * @return 当前执行模式
+     */
+    @GetMapping("/execution-mode")
+    public ApiResponse<com.crypto.trade.entity.ExecutionMode> getCurrentExecutionMode() {
+        try {
+            log.debug("获取当前执行模式");
+            com.crypto.trade.entity.ExecutionMode mode = riskControlService.getCurrentExecutionMode();
+            return ApiResponse.ok(mode);
+        } catch (Exception e) {
+            log.error("获取当前执行模式失败", e);
+            return ApiResponse.fail("获取当前执行模式失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 设置执行模式
+     *
+     * @param request     设置执行模式请求
+     * @param httpRequest HTTP请求对象
+     * @return 设置结果
+     */
+    @PostMapping("/execution-mode")
+    public ApiResponse<String> setExecutionMode(@RequestBody com.crypto.trade.rest.controller.model.request.SetExecutionModeRequest request, HttpServletRequest httpRequest) {
+        try {
+            String modeStr = request.getMode();
+            String reason = request.getReason();
+            if (null == reason || reason.trim().isEmpty()) {
+                reason = "手动设置执行模式";
+            }
+            if (null == modeStr || modeStr.trim().isEmpty()) {
+                return ApiResponse.fail("执行模式不能为空");
+            }
+            // 解析执行模式枚举
+            com.crypto.trade.entity.ExecutionMode newMode = Arrays.stream(com.crypto.trade.entity.ExecutionMode.values())
+                    .filter(mode -> mode.name().equals(modeStr))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("无效的执行模式: " + modeStr));
+            log.debug("设置执行模式: {}, 原因: {}", newMode, reason);
+            riskControlService.setExecutionMode(newMode, reason, httpRequest);
+            log.debug("执行模式设置成功: {}", newMode);
+            return ApiResponse.ok("执行模式设置成功: " + newMode.name());
+        } catch (IllegalArgumentException e) {
+            log.warn("设置执行模式失败: {}", e.getMessage());
+            return ApiResponse.fail(e.getMessage());
+        } catch (Exception e) {
+            log.error("设置执行模式失败", e);
+            return ApiResponse.fail("设置执行模式失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 重置执行模式为全局配置
+     *
+     * @param request     重置请求
+     * @param httpRequest HTTP请求对象
+     * @return 重置结果
+     */
+    @PostMapping("/execution-mode/reset")
+    public ApiResponse<String> resetExecutionMode(@RequestBody com.crypto.trade.rest.controller.model.request.ResetTradingStyleRequest request, HttpServletRequest httpRequest) {
+        try {
+            String reason = request.getReason();
+            if (null == reason || reason.trim().isEmpty()) {
+                reason = "重置为全局配置";
+            }
+            log.debug("重置执行模式为全局配置，原因: {}", reason);
+            riskControlService.resetExecutionMode(reason, httpRequest);
+            log.debug("执行模式重置成功");
+            return ApiResponse.ok("执行模式已重置为全局配置");
+        } catch (Exception e) {
+            log.error("重置执行模式失败", e);
+            return ApiResponse.fail("重置执行模式失败: " + e.getMessage());
+        }
+    }
 }

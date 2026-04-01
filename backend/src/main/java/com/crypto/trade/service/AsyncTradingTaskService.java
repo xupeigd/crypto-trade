@@ -1,8 +1,10 @@
 package com.crypto.trade.service;
 
+import com.crypto.trade.config.BotFlowNodeConfig;
 import com.crypto.trade.dto.AiResponseParseResult;
 import com.crypto.trade.dto.cex.model.CexPosition;
 import com.crypto.trade.dto.response.BotPromptGenerateResponse;
+import com.crypto.trade.dto.response.FlowNodeStatusResponse;
 import com.crypto.trade.entity.*;
 import com.crypto.trade.enums.TradeBalanceSnapshotSource;
 import com.crypto.trade.model.AccountDetailModel;
@@ -15,6 +17,8 @@ import com.crypto.trade.service.unified.UnifiedBalanceService;
 import com.crypto.trade.service.unified.UnifiedPositionService;
 import com.crypto.trade.util.AiResponseParserUtil;
 import com.crypto.trade.util.ClearVisionUtils;
+import com.crypto.trade.util.JsonUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,6 +74,10 @@ public class AsyncTradingTaskService {
     ToolResultFormatter toolResultFormatter;
     @Autowired
     ChatMessageRepository chatMessageRepository;
+    @Autowired
+    AttentionQueueService attentionQueueService;
+    @Autowired
+    BotFlowNodeConfig botFlowNodeConfig;
 
     /**
      * 异步执行AI模型调用任务
@@ -293,10 +301,34 @@ public class AsyncTradingTaskService {
         // 获取账户和持仓数据
         AccountDetailModel accountDetail = unifiedBalanceService.getAccountUsdtDetail(request.getApiKeyId());
         String positionDetails = aiDecisionService.getPositionDetails(request.getApiKeyId());
+        List<FlowNodeStatusResponse> flowNodes = initializeFlowNodes(callRecordId);
+        markFlowNodeRunning(callRecordId, flowNodes, "PROMPT_BUILD", "开始准备Prompt");
 
-        // 直接使用promptContent字段
+        // 如果没有提供promptContent，则自动生成
         String finalPromptContent = request.getPromptContent();
-        log.debug("使用prompt内容 - 长度: {}", finalPromptContent.length());
+        if (finalPromptContent == null || finalPromptContent.trim().isEmpty()) {
+            log.debug("未提供prompt内容，开始生成prompt - apiKeyId: {}", request.getApiKeyId());
+            try {
+                // 传递request中的attentions（用于Attention触发时避免从数据库查询不到数据）
+                BotPromptGenerateResponse promptResponse = aiDecisionService.generatePromptOnly(request.getApiKeyId(), request.getAttentions());
+                if (promptResponse.getSuccess()) {
+                    finalPromptContent = promptResponse.getPromptContent();
+                    log.debug("prompt生成成功 - 长度: {}", finalPromptContent.length());
+                    markFlowNodeSuccess(callRecordId, flowNodes, "PROMPT_BUILD", "Prompt生成完成");
+                } else {
+                    log.error("prompt生成失败 - apiKeyId: {}, error: {}", request.getApiKeyId(), promptResponse.getErrorMessage());
+                    markFlowNodeFailed(callRecordId, flowNodes, "PROMPT_BUILD", promptResponse.getErrorMessage());
+                    throw new RuntimeException("prompt生成失败: " + promptResponse.getErrorMessage());
+                }
+            } catch (Exception e) {
+                log.error("prompt生成异常 - apiKeyId: {}", request.getApiKeyId(), e);
+                markFlowNodeFailed(callRecordId, flowNodes, "PROMPT_BUILD", e.getMessage());
+                throw new RuntimeException("prompt生成异常: " + e.getMessage(), e);
+            }
+        } else {
+            log.debug("使用prompt内容 - 长度: {}", finalPromptContent.length());
+            markFlowNodeSuccess(callRecordId, flowNodes, "PROMPT_BUILD", "使用已有Prompt");
+        }
 
         // [重构] 获取模型名称
         String modelName = request.getModelName();
@@ -304,8 +336,21 @@ public class AsyncTradingTaskService {
             modelName = unifiedModelFactory.getDefaultModelConfig().getModelId();
         }
 
+        // [Bug修复] 立即创建用户消息并关联，确保prompt始终关联（即使后续AI调用失败）
+        Long userMessageId = null;
+        try {
+            userMessageId = chatService.createUserMessage(chatSessionId, finalPromptContent);
+            if (userMessageId != null) {
+                llmCallRecordService.updateUserMessageId(callRecordId, userMessageId);
+                log.debug("用户消息已创建并关联 - callRecordId: {}, chatSessionId: {}, userMessageId: {}", callRecordId, chatSessionId, userMessageId);
+            }
+        } catch (Exception e) {
+            log.error("创建用户消息失败（不影响主流程） - callRecordId: {}, chatSessionId: {}", callRecordId, chatSessionId, e);
+        }
+
         // 调用AI模型
         log.debug("执行AI调用 - 使用模型: '{}'", modelName);
+        markFlowNodeRunning(callRecordId, flowNodes, "MODEL_CALL", "模型调用中");
         // 记录AI调用开始时间
         LocalDateTime callStartTime = LocalDateTime.now();
         long llmCallStart = System.currentTimeMillis();
@@ -350,9 +395,14 @@ public class AsyncTradingTaskService {
             aiResponse = unifiedModelFactory.callWithMessages(messages, modelName);
         } catch (UnifiedModelFactory.ModelCallException e) {
             log.error("AI调用失败 - 模型: {}, 错误: {}", modelName, e.getMessage(), e);
+            markFlowNodeFailed(callRecordId, flowNodes, "MODEL_CALL", e.getMessage());
+            markFlowNodeSkipped(callRecordId, flowNodes, "RISK_CONTROL");
+            markFlowNodeSkipped(callRecordId, flowNodes, "TRADE_ACTION");
+            markFlowNodeSkipped(callRecordId, flowNodes, "COMPLETE");
             llmCallRecordService.updateCallRecordFailed(callRecordId, e.getMessage());
             throw new RuntimeException("AI调用失败: " + e.getMessage(), e);
         }
+        markFlowNodeSuccess(callRecordId, flowNodes, "MODEL_CALL", "模型响应完成");
 
         long llmCallTimeMs = System.currentTimeMillis() - llmCallStart;
         log.debug("AI调用完成 - 耗时: {}ms", llmCallTimeMs);
@@ -364,6 +414,7 @@ public class AsyncTradingTaskService {
 
         // ===== 后置处理开始 =====
         long postActionStart = System.currentTimeMillis();
+        markFlowNodeRunning(callRecordId, flowNodes, "RISK_CONTROL", "开始风控与动作解析");
 
         // [新增] 检测是否包含工具调用,触发多轮对话
         try {
@@ -383,6 +434,7 @@ public class AsyncTradingTaskService {
                 log.debug("【异步第1轮】TradeAction保存完成，获得id - callRecordId: {}, actionCount: {}",
                         callRecordId, savedTradeActions != null ? savedTradeActions.size() : 0);
             }
+            markFlowNodeSuccess(callRecordId, flowNodes, "RISK_CONTROL", "风控节点完成");
 
             // [重构] 将含id的TradeAction转换为新的ActionPack，并替换aiResponse
             if (savedTradeActions != null && !savedTradeActions.isEmpty()) {
@@ -438,7 +490,10 @@ public class AsyncTradingTaskService {
                 long promptTime = (null != promptGenerationTimeMs) ? promptGenerationTimeMs : 0L;
                 long totalProcessingTime = promptTime + llmCallTimeMs + postActionTimeMs;
                 Long[] messageIds = chatService.createAiTradeMessagePair(chatSessionId, finalPromptContent, aiResponse, totalProcessingTime);
-                Long userMessageId = messageIds[0];
+                // 注意：userMessageId已在方法开头声明，这里只更新值
+                if (messageIds[0] != null) {
+                    userMessageId = messageIds[0];
+                }
                 Long assistantMessageId = messageIds[1];
                 log.debug("异步任务ChatMessage已创建 - chatSessionId: {}, callRecordId: {}, userMsgId: {}, assistantMsgId: {}",
                         chatSessionId, callRecordId, userMessageId, assistantMessageId);
@@ -464,6 +519,8 @@ public class AsyncTradingTaskService {
 
             if (ActionParser.containsToolCall(actionPack)) {
                 log.info("【异步多轮】检测到工具调用,启动异步递归对话处理 - callRecordId: {}, chatSessionId: {}", callRecordId, chatSessionId);
+                markFlowNodeSkipped(callRecordId, flowNodes, "TRADE_ACTION");
+                markFlowNodeRunning(callRecordId, flowNodes, "COMPLETE", "进入多轮流程");
 
                 // 执行异步递归处理(不再需要返回TradeDecision)
                 processAsyncConversationRecursive(request, callRecordId, chatSessionId, modelName, finalPromptContent,
@@ -473,6 +530,7 @@ public class AsyncTradingTaskService {
                 assert actionPack != null;
                 log.info("【异步单轮】第一轮无工具调用,直接执行交易 - callRecordId: {}, actionCount: {}",
                         callRecordId, actionPack.getActions() != null ? actionPack.getActions().size() : 0);
+                markFlowNodeRunning(callRecordId, flowNodes, "TRADE_ACTION", "开始执行交易");
 
                 try {
                     // 直接使用已解析的actionPack执行交易
@@ -491,16 +549,38 @@ public class AsyncTradingTaskService {
                             log.debug("【异步单轮】交易执行完成 - callRecordId: {}, resultCount: {}",
                                     callRecordId, executionResults.size());
                         }
+                        markFlowNodeSuccess(callRecordId, flowNodes, "TRADE_ACTION", "交易动作执行完成");
                     } else {
                         log.warn("【异步单轮】ActionPack为null或包含工具调用,跳过交易执行 - callRecordId: {}, actionPack: {}",
                                 callRecordId, actionPack);
+                        markFlowNodeSkipped(callRecordId, flowNodes, "TRADE_ACTION");
                     }
                 } catch (Exception tradeEx) {
                     log.error("【异步单轮】执行交易动作失败 - callRecordId: {}", callRecordId, tradeEx);
+                    markFlowNodeFailed(callRecordId, flowNodes, "TRADE_ACTION", tradeEx.getMessage());
                 }
+                markFlowNodeRunning(callRecordId, flowNodes, "COMPLETE", "流程收尾中");
+                markFlowNodeSuccess(callRecordId, flowNodes, "COMPLETE", "流程完成");
             }
         } catch (Exception e) {
             log.error("【异步多轮】工具调用检测失败 - callRecordId: {}", callRecordId, e);
+            markFlowNodeFailed(callRecordId, flowNodes, "RISK_CONTROL", e.getMessage());
+            markFlowNodeSkipped(callRecordId, flowNodes, "TRADE_ACTION");
+            markFlowNodeFailed(callRecordId, flowNodes, "COMPLETE", e.getMessage());
+
+            // 【修复】解析失败时，保存可能的响应内容
+            if (aiResponse != null && !aiResponse.isEmpty()) {
+                try {
+                    // 创建助手消息保存响应
+                    Long assistantMessageId = chatService.createAssistantMessage(chatSessionId, aiResponse, null);
+                    if (assistantMessageId != null) {
+                        llmCallRecordService.updateAssistantMessageId(callRecordId, assistantMessageId);
+                        log.debug("【异步多轮】解析失败但响应已保存 - callRecordId: {}, assistantMsgId: {}", callRecordId, assistantMessageId);
+                    }
+                } catch (Exception saveEx) {
+                    log.error("【异步多轮】保存失败响应时发生异常 - callRecordId: {}", callRecordId, saveEx);
+                }
+            }
             // 解析失败，继续正常流程
         }
 
@@ -584,6 +664,7 @@ public class AsyncTradingTaskService {
                 if (hasOnlyHoldDecision(initialActionPack)) {
                     log.info("【异步递归】第{}轮检测到HOLD决策（无需工具执行）,对话终止 - sessionId: {}", currentRound, sessionId);
                     llmCallRecordService.markConversationAsCompleted(chatSessionId);
+                    updateCompleteNodeForSession(firstCallRecordId, "SUCCESS", "多轮会话完成");
                     break;
                 }
 
@@ -622,6 +703,7 @@ public class AsyncTradingTaskService {
                     if (hasFinalDecision(actionPack)) {
                         log.info("【异步递归】第{}轮检测到最终决策,对话终止 - sessionId: {}", currentRound, sessionId);
                         llmCallRecordService.markConversationAsCompleted(chatSessionId);
+                        updateCompleteNodeForSession(firstCallRecordId, "SUCCESS", "多轮会话完成");
 
                         // 创建snapshot和record（复用现有代码）
                         try {
@@ -665,9 +747,28 @@ public class AsyncTradingTaskService {
                     }
                     // ==============================================
 
+                    // 修复bug：HOLD转换为ATTENTION后重复创建LlmCallRecord
+                    // 检查是否只有非交易动作（QUERY/ATTENTION），这些动作的TradeAction已在第838行保存
                     else if (!ActionParser.containsToolCall(actionPack)) {
+                        assert actionPack != null;
+                        boolean hasTradingAction = actionPack.getActions().stream()
+                                .anyMatch(action -> {
+                                    String actionType = action.getAction() != null ? action.getAction().name() : null;
+                                    return "BUY".equals(actionType) || "SELL".equals(actionType);
+                                });
+
+                        if (!hasTradingAction) {
+                            // 只有QUERY/ATTENTION，不需要创建新的LlmCallRecord（TradeAction已在第838行保存）
+                            log.debug("【异步递归】第{}轮仅有非交易动作(QUERY/ATTENTION),TradeAction已保存,对话终止 - sessionId: {}", currentRound, sessionId);
+                            llmCallRecordService.markConversationAsCompleted(chatSessionId);
+                            updateCompleteNodeForSession(firstCallRecordId, "SUCCESS", "多轮会话完成");
+                            break;
+                        }
+
+                        // 继续原有逻辑：处理BUY/SELL最终决策...
                         log.info("【异步递归】第{}轮无工具调用,对话终止 - sessionId: {}", currentRound, sessionId);
                         llmCallRecordService.markConversationAsCompleted(chatSessionId);
+                        updateCompleteNodeForSession(firstCallRecordId, "SUCCESS", "多轮会话完成");
 
                         // ✅ 修复P0级bug：在break前创建snapshot和record（针对最终BUY/SELL决策）
                         try {
@@ -722,6 +823,7 @@ public class AsyncTradingTaskService {
                     }
                 } catch (Exception e) {
                     log.error("【异步递归】第{}轮响应解析失败", currentRound, e);
+                    updateCompleteNodeForSession(firstCallRecordId, "FAILED", "多轮响应解析失败");
                     break;
                 }
 
@@ -771,11 +873,30 @@ public class AsyncTradingTaskService {
                     // 【修改】第三步：创建新的LlmCallRecord
                     LlmCallRecord newRecord = llmCallRecordService.createCallRecord(request.getApiKeyId(), modelName,
                             chatSessionId, currentParentId, currentRound + 1, parentCallSource,
-                            null,  // userMessageId
+                            null,  // userMessageId（稍后设置）
                             null   // assistantMessageId
                     );
 
                     currentParentId = newRecord.getId();
+
+                    // 【修复】第三步+1：立即创建用户消息并关联（确保prompt始终关联）
+                    Long currentUserMessageId = null;
+                    try {
+                        // 用户消息内容为工具调用结果
+                        String userMessageContent = "";
+                        if (toolResults != null && !toolResults.isEmpty()) {
+                            userMessageContent = toolResultFormatter.formatToolResultsMarkdown(toolResults);
+                        }
+                        currentUserMessageId = chatService.createUserMessage(chatSessionId, userMessageContent);
+                        if (currentUserMessageId != null) {
+                            llmCallRecordService.updateUserMessageId(currentParentId, currentUserMessageId);
+                            log.debug("【异步递归】第{}轮用户消息已创建并关联 - recordId: {}, userMsgId: {}",
+                                    currentRound + 1, currentParentId, currentUserMessageId);
+                        }
+                    } catch (Exception msgEx) {
+                        log.error("【异步递归】第{}轮创建用户消息失败（不影响主流程） - recordId: {}",
+                                currentRound + 1, currentParentId, msgEx);
+                    }
 
                     // 【修改】第四步：更新TradeBalanceSnapshot的recordId
                     if (currentSnapshotId != null) {
@@ -928,6 +1049,7 @@ public class AsyncTradingTaskService {
                             || nextActionPack.getActions().isEmpty()) {
                         log.warn("【异步递归】第{}轮响应中无有效工具调用,对话终止 - sessionId: {}",
                                 currentRound, sessionId);
+                        updateCompleteNodeForSession(firstCallRecordId, "SUCCESS", "无后续工具调用，流程结束");
                         break;
                     }
 
@@ -935,8 +1057,14 @@ public class AsyncTradingTaskService {
 
                 } catch (Exception e) {
                     log.error("【异步递归】第{}轮AI调用失败", currentRound + 1, e);
+
+                    // 【修复】失败时保存可能的响应内容
+                    // 注意：nextAiResponse可能在此作用域不可用，需要检查
+                    // 但currentUserMessageId已经在创建记录后设置
+
                     llmCallRecordService.markAllProcessingAsTerminated(chatSessionId,
                             String.format("第%d轮AI调用失败: %s", currentRound + 1, e.getMessage()));
+                    updateCompleteNodeForSession(firstCallRecordId, "FAILED", "多轮AI调用失败");
                     break;
                 }
             }
@@ -1002,10 +1130,12 @@ public class AsyncTradingTaskService {
             }
 
             log.info("【异步递归】多轮对话完成 - sessionId: {}, 总轮次: {}, 总耗时: {}ms", sessionId, currentRound, totalProcessingTime);
+            updateCompleteNodeForSession(firstCallRecordId, "SUCCESS", "多轮会话完成");
 
         } catch (Exception e) {
             log.error("【异步递归】多轮对话处理失败 - sessionId: {}", sessionId, e);
             llmCallRecordService.markAllProcessingAsTerminated(chatSessionId, "异步递归处理失败: " + e.getMessage());
+            updateCompleteNodeForSession(firstCallRecordId, "FAILED", "异步递归处理失败");
         }
     }
 
@@ -1017,8 +1147,7 @@ public class AsyncTradingTaskService {
         try {
             if (ActionParser.ActionType.QUERY == action.getAction()) {
                 // 构造KLineParameters
-                KLineParameters params =
-                        new KLineParameters();
+                KLineParameters params = new KLineParameters();
                 params.setInstId(action.getInstId());
                 params.setTimeframe(action.getTimeframe() != null ? action.getTimeframe() : "1H");
                 params.setLimit(action.getLimit() != null ? action.getLimit() : 100);
@@ -1033,7 +1162,18 @@ public class AsyncTradingTaskService {
                 log.debug("【异步递归】执行ATTENTION工具 - instId: {}, timeframe: {}, priority: {}",
                         action.getInstId(), action.getTimeframe(), action.getPriority());
 
-                // ATTENTION只是标记需要关注的币种，不需要实际查询数据
+                // 保存ATTENTION到队列
+                attentionQueueService.save(AttentionQueue.builder()
+                        .recordId(Long.parseLong(decisionId))
+                        .apiKeyId(apiKeyId)
+                        .instId(action.getInstId())
+                        .priority(action.getPriority())
+                        .timeframe(action.getTimeframe())
+                        .queryLimit(action.getLimit())
+                        .expectedTriggerTime(attentionQueueService.calculateNextTriggerTime(action.getPriority()))
+                        .status("PENDING")
+                        .build());
+
                 // 返回成功结果，携带币种信息
                 long processingTime = 0L;  // ATTENTION不需要实际处理，时间设为0
                 return ToolExecutionResult.success(
@@ -1080,7 +1220,7 @@ public class AsyncTradingTaskService {
         return actionPack.getActions().stream()
                 .anyMatch(action -> {
                     String actionType = action.getAction() != null ? action.getAction().name() : null;
-                    return "BUY".equals(actionType) || "SELL".equals(actionType) || "HOLD".equals(actionType);
+                    return "BUY".equals(actionType) || "SELL".equals(actionType) || "HOLD".equals(actionType) || "ATTENTION".equals(actionType);
                 });
     }
 
@@ -1304,6 +1444,95 @@ public class AsyncTradingTaskService {
             sb.append(message.getContent()).append("\n\n");
         }
         return sb.toString();
+    }
+
+    private List<FlowNodeStatusResponse> initializeFlowNodes(Long callRecordId) {
+        if (!botFlowNodeConfig.isEnabled()) {
+            return null;
+        }
+        List<FlowNodeStatusResponse> flowNodes = botFlowNodeConfig.getEnabledNodesSorted().stream()
+                .map(node -> FlowNodeStatusResponse.builder()
+                        .nodeCode(node.getCode())
+                        .nodeName(node.getName())
+                        .orderNo(node.getOrderNo())
+                        .status("PENDING")
+                        .build())
+                .collect(Collectors.toList());
+        persistFlowNodes(callRecordId, flowNodes);
+        return flowNodes;
+    }
+
+    private void markFlowNodeRunning(Long callRecordId, List<FlowNodeStatusResponse> flowNodes, String nodeCode, String message) {
+        updateFlowNodeStatus(callRecordId, flowNodes, nodeCode, "RUNNING", message);
+    }
+
+    private void markFlowNodeSuccess(Long callRecordId, List<FlowNodeStatusResponse> flowNodes, String nodeCode, String message) {
+        updateFlowNodeStatus(callRecordId, flowNodes, nodeCode, "SUCCESS", message);
+    }
+
+    private void markFlowNodeFailed(Long callRecordId, List<FlowNodeStatusResponse> flowNodes, String nodeCode, String message) {
+        updateFlowNodeStatus(callRecordId, flowNodes, nodeCode, "FAILED", message);
+    }
+
+    private void markFlowNodeSkipped(Long callRecordId, List<FlowNodeStatusResponse> flowNodes, String nodeCode) {
+        updateFlowNodeStatus(callRecordId, flowNodes, nodeCode, "SKIPPED", null);
+    }
+
+    private void updateFlowNodeStatus(Long callRecordId, List<FlowNodeStatusResponse> flowNodes, String nodeCode, String status, String message) {
+        if (flowNodes == null || flowNodes.isEmpty() || nodeCode == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (FlowNodeStatusResponse node : flowNodes) {
+            if (!nodeCode.equals(node.getNodeCode())) {
+                continue;
+            }
+            node.setStatus(status);
+            if ("RUNNING".equals(status) && node.getStartTime() == null) {
+                node.setStartTime(now);
+            }
+            if (("SUCCESS".equals(status) || "FAILED".equals(status) || "SKIPPED".equals(status)) && node.getEndTime() == null) {
+                node.setEndTime(now);
+                if (node.getStartTime() != null) {
+                    node.setDurationMs(now - node.getStartTime());
+                }
+            }
+            node.setMessage(message);
+            break;
+        }
+        persistFlowNodes(callRecordId, flowNodes);
+    }
+
+    private void persistFlowNodes(Long callRecordId, List<FlowNodeStatusResponse> flowNodes) {
+        if (flowNodes == null || flowNodes.isEmpty()) {
+            return;
+        }
+        try {
+            llmCallRecordService.updateFlowNodesJsonInNewTransaction(callRecordId, JsonUtils.toJsonString(flowNodes));
+        } catch (Exception e) {
+            log.warn("更新流程节点状态失败 - callRecordId: {}", callRecordId, e);
+        }
+    }
+
+    private void updateCompleteNodeForSession(Long firstCallRecordId, String status, String message) {
+        try {
+            Optional<LlmCallRecord> recordOpt = llmCallRecordService.getRecordById(firstCallRecordId);
+            if (recordOpt.isEmpty()) {
+                return;
+            }
+            String flowNodesJson = recordOpt.get().getFlowNodesJson();
+            if (!StringUtils.hasText(flowNodesJson)) {
+                return;
+            }
+            List<FlowNodeStatusResponse> flowNodes = objectMapper.readValue(
+                    flowNodesJson,
+                    new TypeReference<List<FlowNodeStatusResponse>>() {
+                    }
+            );
+            updateFlowNodeStatus(firstCallRecordId, flowNodes, "COMPLETE", status, message);
+        } catch (Exception e) {
+            log.warn("更新会话完成节点状态失败 - firstCallRecordId: {}", firstCallRecordId, e);
+        }
     }
 
     /**

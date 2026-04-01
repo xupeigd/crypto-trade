@@ -24,8 +24,6 @@ import lombok.Data;
 })
 public abstract class ToolParameters {
 
-    /**
-     * 动作类型（由子类实现）
-     */
-    public abstract String getAction();
+    abstract String getAction();
+
 }

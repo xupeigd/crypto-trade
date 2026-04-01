@@ -25,6 +25,15 @@ import java.time.LocalDateTime;
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ChatSession {
 
+    /**
+     * 会话状态常量
+     */
+    public interface SessionStatus {
+        String PRE_ACTIVE = "pre_active";
+        String ACTIVE = "active";
+        String ARCHIVED = "archived";
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "session_id")
@@ -41,6 +50,9 @@ public class ChatSession {
 
     @Column(name = "model_name", length = 50)
     private String modelName = "";
+
+    @Column(name = "agent_id")
+    private Long agentId;
 
     @Column(name = "created_time")
     private LocalDateTime createdTime;

@@ -4,10 +4,10 @@ import {ApiResponse, ChatMessage, ChatSession, SendMessageRequest, SendMessageRe
 
 const API_BASE_URL = '/chat';
 
-// 为chat服务创建专用的axios实例，设置120秒超时
+// 为chat服务创建专用的axios实例，设置5分钟超时
 const chatApi = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 120000,
+    timeout: 300000,
     headers: {
         'Content-Type': 'application/json',
     },
@@ -36,10 +36,14 @@ chatApi.interceptors.response.use(
 
 class ChatService {
     // 获取用户所有会话
-    async getUserSessions(userId: string = 'default'): Promise<ChatSession[]> {
+    async getUserSessions(userId: string = 'default', agentId?: number): Promise<ChatSession[]> {
         try {
+            const params: any = {userId};
+            if (agentId) {
+                params.agentId = agentId;
+            }
             const response = await chatApi.get(`/sessions`, {
-                params: {userId}
+                params
             });
             const apiResponse: ApiResponse<ChatSession[]> = response.data;
             return apiResponse.data;
@@ -50,11 +54,14 @@ class ChatService {
     }
 
     // 创建新会话
-    async createNewSession(sessionName?: string, userId: string = 'default'): Promise<ChatSession> {
+    async createNewSession(sessionName?: string, userId: string = 'default', agentId?: number): Promise<ChatSession> {
         try {
             const params: any = {userId};
             if (sessionName) {
                 params.sessionName = sessionName;
+            }
+            if (agentId) {
+                params.agentId = agentId;
             }
             const response = await chatApi.post(`/sessions`, null, {
                 params

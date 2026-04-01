@@ -1,5 +1,6 @@
 package com.crypto.trade.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -62,21 +63,25 @@ public class InstrumentOverviewResponse {
         /**
          * 平均波动率 (%)
          */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private Double averageVolatility;
 
         /**
          * 周期内最低价
          */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private BigDecimal minPrice;
 
         /**
          * 周期内最高价
          */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private BigDecimal maxPrice;
 
         /**
          * 数据点数量
          */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private Integer dataPoints;
     }
 }

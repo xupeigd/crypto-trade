@@ -29,4 +29,9 @@ public class SendMessageRequest {
      * 用户ID
      */
     private String userId;
+
+    /**
+     * 临时系统预设（智能体配置中传入）
+     */
+    private String systemPrompt;
 }

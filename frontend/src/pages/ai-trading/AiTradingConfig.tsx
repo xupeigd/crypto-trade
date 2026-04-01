@@ -41,6 +41,7 @@ import {
     RiskModeHistory,
     RiskModeIconMap,
     RiskModeMap,
+    SetExecutionModeRequest,
     SetRiskModeRequest,
     SetTradingStyleRequest,
     TradingStyle,
@@ -48,7 +49,11 @@ import {
     TradingStyleDescriptionMap,
     TradingStyleHistory,
     TradingStyleIconMap,
-    TradingStyleMap
+    TradingStyleMap,
+    ExecutionMode,
+    ExecutionModeMap,
+    ExecutionModeColorMap,
+    ExecutionModeIconMap
 } from './types';
 import {aiTradingService, aiTradingUtils} from './aiTradingService';
 
@@ -67,9 +72,11 @@ const AiTradingConfig: React.FC = () => {
     const [resetModalVisible, setResetModalVisible] = useState(false);
     const [tradingStyleModalVisible, setTradingStyleModalVisible] = useState(false);
     const [tradingStyleResetModalVisible, setTradingStyleResetModalVisible] = useState(false);
+    const [executionModeModalVisible, setExecutionModeModalVisible] = useState(false);
     // 操作加载状态
     const [switchingMode, setSwitchingMode] = useState(false);
     const [switchingTradingStyle, setSwitchingTradingStyle] = useState(false);
+    const [switchingExecutionMode, setSwitchingExecutionMode] = useState(false);
     // 历史记录展开/收起状态
     const [showRiskHistory, setShowRiskHistory] = useState(false);
     const [showTradingStyleHistory, setShowTradingStyleHistory] = useState(false);
@@ -77,6 +84,7 @@ const AiTradingConfig: React.FC = () => {
     const [resetForm] = Form.useForm();
     const [tradingStyleForm] = Form.useForm();
     const [tradingStyleResetForm] = Form.useForm();
+    const [executionModeForm] = Form.useForm();
 
     // 加载初始数据
     useEffect(() => {
@@ -713,6 +721,54 @@ const AiTradingConfig: React.FC = () => {
         });
     };
 
+    // 打开切换执行模式对话框
+    const openExecutionModeModal = () => {
+        if (!riskControlInfo) return;
+        executionModeForm.setFieldsValue({
+            mode: riskControlInfo.executionMode || ExecutionMode.DRY_RUN,
+            reason: ''
+        });
+        setExecutionModeModalVisible(true);
+    };
+
+    // 切换执行模式
+    const handleExecutionModeSwitch = async () => {
+        if (!riskControlInfo) return;
+
+        try {
+            const values = await executionModeForm.validateFields();
+            const targetMode = values.mode as ExecutionMode;
+
+            setSwitchingExecutionMode(true);
+
+            const request: SetExecutionModeRequest = {
+                mode: targetMode,
+                reason: values.reason || '手动设置'
+            };
+
+            const response = await aiTradingUtils.setExecutionMode(request);
+
+            if (response.success) {
+                app.notification.success({
+                    message: '执行模式切换成功',
+                    description: `已切换到 ${ExecutionModeMap[targetMode]}`,
+                    duration: 3,
+                });
+
+                setExecutionModeModalVisible(false);
+                executionModeForm.resetFields();
+                await loadAllData();
+            } else {
+                app.message.error(response.message || '操作失败');
+            }
+        } catch (error) {
+            const errorMessage = (error as any)?.response?.data?.message || (error as any)?.message || '未知错误';
+            app.message.error('切换执行模式失败: ' + errorMessage);
+        } finally {
+            setSwitchingExecutionMode(false);
+        }
+    };
+
     // 打开重置对话框
     const openResetModal = () => {
         resetForm.setFieldsValue({
@@ -1179,6 +1235,96 @@ const AiTradingConfig: React.FC = () => {
                                     </div>
                                 ),
                             },
+                            {
+                                key: 'execution-mode',
+                                label: (
+                                    <Space>
+                                        <SettingOutlined/>
+                                        <span>执行模式</span>
+                                    </Space>
+                                ),
+                                children: (
+                                    <div>
+                                        <Row gutter={24}>
+                                            <Col xs={24} lg={12}>
+                                                <Descriptions bordered size="small" column={1}>
+                                                    <Descriptions.Item label="当前执行模式">
+                                                        {riskControlInfo.executionMode ? (
+                                                            <Badge
+                                                                color={ExecutionModeColorMap[riskControlInfo.executionMode]}
+                                                                text={
+                                                                    <Space>
+                                                                        <span>{ExecutionModeIconMap[riskControlInfo.executionMode]}</span>
+                                                                        <Text strong>{ExecutionModeMap[riskControlInfo.executionMode]}</Text>
+                                                                    </Space>
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <Text type="secondary">使用全局配置</Text>
+                                                        )}
+                                                    </Descriptions.Item>
+                                                    <Descriptions.Item label="全局默认模式">
+                                                        <Tag color={riskControlInfo.defaultExecutionMode ? ExecutionModeColorMap[riskControlInfo.defaultExecutionMode] : '#fa8c16'}>
+                                                            {riskControlInfo.defaultExecutionMode ? ExecutionModeIconMap[riskControlInfo.defaultExecutionMode] : '🟠'} {riskControlInfo.defaultExecutionMode ? ExecutionModeMap[riskControlInfo.defaultExecutionMode] : '模拟模式'}
+                                                        </Tag>
+                                                    </Descriptions.Item>
+                                                </Descriptions>
+                                            </Col>
+                                            <Col xs={24} lg={12}>
+                                                <Space direction="vertical" size="large" style={{width: '100%'}}>
+                                                    <Alert
+                                                        message="执行模式说明"
+                                                        description={
+                                                            <div>
+                                                                <Paragraph style={{color: 'rgba(255, 255, 255, 0.88)'}}>
+                                                                    <Text strong style={{color: '#ffffff'}}>
+                                                                        <span style={{marginRight: 8}}>🔴</span>
+                                                                        实盘模式：
+                                                                    </Text>
+                                                                    真实下单到交易所，执行实际交易
+                                                                </Paragraph>
+                                                                <Paragraph style={{color: 'rgba(255, 255, 255, 0.88)'}}>
+                                                                    <Text strong style={{color: '#ffffff'}}>
+                                                                        <span style={{marginRight: 8}}>🟠</span>
+                                                                        模拟模式：
+                                                                    </Text>
+                                                                    不提交订单，仅模拟执行，用于测试验证
+                                                                </Paragraph>
+                                                            </div>
+                                                        }
+                                                        type="info"
+                                                        showIcon
+                                                        icon={<InfoCircleOutlined/>}
+                                                    />
+
+                                                    <Alert
+                                                        message="优先级规则"
+                                                        description={
+                                                            <Text style={{color: 'rgba(255, 255, 255, 0.88)'}}>
+                                                                智能体配置 &gt; AI交易配置 &gt; 全局配置
+                                                            </Text>
+                                                        }
+                                                        type="warning"
+                                                        showIcon
+                                                    />
+
+                                                    <Button
+                                                        type="primary"
+                                                        size="large"
+                                                        icon={<SettingOutlined/>}
+                                                        onClick={openExecutionModeModal}
+                                                        loading={switchingExecutionMode}
+                                                        disabled={switchingExecutionMode}
+                                                        style={{width: '100%'}}
+                                                    >
+                                                        {switchingExecutionMode ? '切换中...' : '切换执行模式'}
+                                                    </Button>
+                                                </Space>
+                                            </Col>
+                                        </Row>
+                                    </div>
+                                ),
+                            },
                         ]}
                     />
                 </Card>
@@ -1488,6 +1634,81 @@ const AiTradingConfig: React.FC = () => {
                         <TextArea
                             rows={3}
                             placeholder="请简要说明重置为默认交易风格的原因..."
+                            maxLength={500}
+                            showCount
+                        />
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+            {/* 切换执行模式对话框 */}
+            <Modal
+                title={
+                    <Space>
+                        <span>切换执行模式</span>
+                        {riskControlInfo?.executionMode && (
+                            <Tag color="processing">
+                                当前: {ExecutionModeMap[riskControlInfo.executionMode]}
+                            </Tag>
+                        )}
+                    </Space>
+                }
+                open={executionModeModalVisible}
+                onOk={handleExecutionModeSwitch}
+                onCancel={() => {
+                    setExecutionModeModalVisible(false);
+                    executionModeForm.resetFields();
+                }}
+                okText="确认切换"
+                cancelText="取消"
+            >
+                <Alert
+                    message="执行模式切换"
+                    description={
+                        <Text style={{color: 'rgba(255, 255, 255, 0.88)'}}>
+                            实盘模式将真实下单到交易所，模拟模式仅进行模拟执行，不实际下单。
+                        </Text>
+                    }
+                    type="warning"
+                    showIcon
+                    style={{marginBottom: 16}}
+                />
+
+                <Form form={executionModeForm} layout="vertical">
+                    <Form.Item
+                        label="目标模式"
+                        name="mode"
+                        rules={[{required: true, message: '请选择执行模式'}]}
+                    >
+                        <Radio.Group>
+                            <Radio value={ExecutionMode.LIVE}>
+                                <Space>
+                                    <span>🔴</span>
+                                    <span>实盘模式</span>
+                                    {riskControlInfo?.executionMode === ExecutionMode.LIVE && (
+                                        <Tag color="default">当前</Tag>
+                                    )}
+                                </Space>
+                            </Radio>
+                            <Radio value={ExecutionMode.DRY_RUN}>
+                                <Space>
+                                    <span>🟠</span>
+                                    <span>模拟模式</span>
+                                    {riskControlInfo?.executionMode === ExecutionMode.DRY_RUN && (
+                                        <Tag color="default">当前</Tag>
+                                    )}
+                                </Space>
+                            </Radio>
+                        </Radio.Group>
+                    </Form.Item>
+
+                    <Form.Item
+                        label="变更原因"
+                        name="reason"
+                    >
+                        <TextArea
+                            rows={3}
+                            placeholder="请简要说明切换执行模式的原因..."
                             maxLength={500}
                             showCount
                         />

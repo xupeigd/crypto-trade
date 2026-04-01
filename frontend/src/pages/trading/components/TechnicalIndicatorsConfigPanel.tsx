@@ -229,10 +229,10 @@ const TechnicalIndicatorsConfigPanel: React.FC<TechnicalIndicatorsConfigPanelPro
 
     // 应用预设策略
     const applyPreset = (preset: IndicatorPreset) => {
-        console.log('[TechnicalIndicatorsConfigPanel] 应用预设策略:', preset.name, {
-            指标列表: preset.indicators,
-            配置详情: preset.configs
-        });
+        // console.log('[TechnicalIndicatorsConfigPanel] 应用预设策略:', preset.name, {
+        //     指标列表: preset.indicators,
+        //     配置详情: preset.configs
+        // });
 
         // 清空当前配置
         selectedIndicators.forEach(indicator => {
@@ -248,22 +248,22 @@ const TechnicalIndicatorsConfigPanel: React.FC<TechnicalIndicatorsConfigPanelPro
             // 立即更新配置
             const config = preset.configs[indicator];
             if (config) {
-                console.log(`[TechnicalIndicatorsConfigPanel] 应用 ${indicator} 配置:`, {
-                    原始配置: config,
-                    包含periods: !!config.periods,
-                    包含period: !!config.period,
-                    periods数量: config.periods?.length
-                });
+                // console.log(`[TechnicalIndicatorsConfigPanel] 应用 ${indicator} 配置:`, {
+                //     原始配置: config,
+                //     包含periods: !!config.periods,
+                //     包含period: !!config.period,
+                //     periods数量: config.periods?.length
+                // });
                 onUpdateIndicatorConfig(indicator, config);
             } else {
-                console.warn(`[TechnicalIndicatorsConfigPanel] 指标 ${indicator} 没有配置数据`);
+                // console.warn(`[TechnicalIndicatorsConfigPanel] 指标 ${indicator} 没有配置数据`);
             }
         });
     };
 
     // 清除所有配置
     const clearAllConfig = () => {
-        console.log('[TechnicalIndicatorsConfigPanel] 清除所有配置');
+        // console.log('[TechnicalIndicatorsConfigPanel] 清除所有配置');
         // 使用新的清除方法，同时清理选中状态和配置数据
         if (onClearAllIndicators) {
             onClearAllIndicators();

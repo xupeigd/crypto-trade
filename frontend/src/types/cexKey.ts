@@ -12,6 +12,7 @@ export interface ApiResponse<T> {
  */
 export interface CexKeyModel {
     keyId?: number;
+    keyName?: string;
     cexName: string;
     storageType: 'DB' | 'ENV';
     status: 'active' | 'inactive';
@@ -28,6 +29,7 @@ export interface CexKeyModel {
  */
 export interface CexKeyDecryptedModel {
     keyId?: number;
+    keyName?: string;
     cexName: string;
     storageType: 'DB' | 'ENV';
     status: 'active' | 'inactive';
@@ -46,6 +48,7 @@ export interface CexKeyDecryptedModel {
  * 包含敏感字段，仅用于创建时发送到后端
  */
 export interface CexKeyCreateRequest {
+    keyName?: string;
     cexName: string;
     accessKey: string;    // 敏感字段，仅用于创建
     secretKey: string;    // 敏感字段，仅用于创建
@@ -61,6 +64,7 @@ export interface CexKeyCreateRequest {
  * 不包含敏感字段，只允许更新配置信息
  */
 export interface CexKeyUpdateRequest {
+    keyName?: string;
     cexName?: string;
     storageType?: 'DB' | 'ENV';
     status?: 'active' | 'inactive';
