@@ -64,6 +64,8 @@
 - [API Key 管理手册](02-cex-api-keys.md)
 - [合约交易手册](03-futures-trading.md)
 - [BOT 交易手册](04-bot-trading.md)
+- [智能体](05-agents.md)
+- [量化框架](06-quantification.md)
 
 ---
 
